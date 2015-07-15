@@ -1,0 +1,14 @@
+generated_wavs/
+### General ###
+*.tmp
+*.bak
+*.swp
+### Eclipse ###
+.settings/
+.launches/
+.project
+.cproject
+.ccsproject
+targetConfigs/
+debug/
+lnk_*.cmd
