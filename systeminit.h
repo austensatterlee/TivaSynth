@@ -7,13 +7,9 @@
 
 #ifndef SYSTEMINIT_H_
 #define SYSTEMINIT_H_
-#include "includes.h"
 
-void setupClocks(void);
-void setupAudioOutput(void);
-void setupDigitalOutputs(void);
-void setupDigitalInputs(void);
-void setupAnalogInputs(void);
-void setupTimers(void);
+void initSystem(void);
+// Math constants
+#define APP_PI      3.1415926535897932384626433832795f
 
 #endif /* SYSTEMINIT_H_ */

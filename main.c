@@ -1,49 +1,25 @@
-#include "includes.h"
+#include "main.h"
 #include "systeminit.h"
-#include "interrupts.h"
-#include "watchdog.h"
-const int8_t WAVE128[] = {-1, 5, 12, 18, 24, 30, 36, 42, 48, 54, 60,
-        65, 70, 75, 80, 85, 90, 94, 98, 102, 106,
-        109, 112, 115, 117, 119, 121, 123, 124, 125, 126,
-        126, 127, 126, 126, 125, 124, 122, 120, 118, 116,
-        113, 110, 107, 104, 100, 96, 92, 87, 83, 78,
-        73, 68, 62, 57, 51, 45, 39, 33, 27, 21,
-        15, 8, 2, -4, -10, -17, -23, -29, -35, -41,
-        -47, -53, -59, -64, -70, -75, -80, -85, -89, -94,
-        -98, -102, -106, -109, -112, -115, -118, -120, -122, -124,
-        -126, -127, -128, -128, -128, -128, -128, -127, -126, -125,
-        -123, -121, -119, -117, -114, -111, -108, -104, -100, -96,
-        -92, -87, -82, -77, -72, -67, -62, -56, -50, -44,
-        -38, -32, -26, -20, -14, -7, -1};
+#include "pwm.h"
+#include "wavetables.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pwm.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/rom.h"
 
 int main(void)
 {
-	_ui32SysClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
-
-	// Initialize variable system parameters
-	_ui32SysTick = 0;
-	_ui32SysMiniTick = 0;
-	PwmPeriod = INIT_PWMPERIOD;
-	TickLength = INIT_TICKLENGTH;
-	TickPeriod = INIT_TICKPERIOD;
+	_ui32SysClock = ROM_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
 
 	// Initialize system hardware & peripherals
-	setupClocks();
-	setupTimers();
-	setupAudioOutput();
-	//setupDigitalOutputs();
-	setupDigitalInputs();
-	// initWatchdog();
-	 MAP_IntMasterEnable();
+	initSystem();
+	ROM_IntMasterEnable();
 
-	 // Initialize system state variables
-	_fFreq = 1;
 	while(1)
 	{
-		_nextSample  = (128+WAVE128[_ui32SysTick])/256.0*PwmPeriod;
-		_nextSample  += (128+WAVE128[(_ui32SysTick*2%128)])/256.0*PwmPeriod;
-		//while(MAP_TimerIntStatus(TIMER0_BASE,0)&TIMER_TIMA_TIMEOUT);
-		while(PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
-		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, _nextSample*0.5);
+		_nextSample  = (128+WAVE128[(uint32_t)(_fSysTick)%128])/256.0*PwmPeriod;
+		while(ROM_PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
+		ROM_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, _nextSample);
 	}
 }
