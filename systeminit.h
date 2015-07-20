@@ -9,10 +9,9 @@
 #define SYSTEMINIT_H_
 #include "includes.h"
 
-
-uint32_t initSystem(void);
-uint32_t setupClocks(void);
+void setupClocks(void);
 void setupAudioOutput(void);
+void setupDigitalOutputs(void);
 void setupDigitalInputs(void);
 void setupAnalogInputs(void);
 void setupTimers(void);

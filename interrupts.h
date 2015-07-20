@@ -11,6 +11,6 @@
 
 void Timer0AIntHandler(void);
 void PWMGen2IntHandler(void);
-
+void PortEIntHandler(void);
 
 #endif /* INTERRUPTS_H_ */

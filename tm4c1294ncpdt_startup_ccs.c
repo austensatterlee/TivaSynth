@@ -44,6 +44,7 @@ extern void _c_int00(void);
 extern void Timer0AIntHandler(void);
 extern void PWMGen2IntHandler(void);
 extern void WatchdogIntHandler(void);
+extern void PortEIntHandler(void);
 
 //*****************************************************************************
 //
@@ -90,7 +91,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
-    IntDefaultHandler,                      // GPIO Port E
+	PortEIntHandler,                      // GPIO Port E
     IntDefaultHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
@@ -104,7 +105,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC Sequence 1
     IntDefaultHandler,                      // ADC Sequence 2
     IntDefaultHandler,                      // ADC Sequence 3
-	WatchdogIntHandler,                      // Watchdog timer
+	WatchdogIntHandler,                     // Watchdog timer
     Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
     IntDefaultHandler,                      // Timer 1 subtimer A
