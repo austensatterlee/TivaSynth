@@ -1,7 +1,13 @@
-#include "includes.h"
+#include <stdint.h>
+#include <stdbool.h>
 #include "systeminit.h"
 #include "interrupts.h"
-#include "watchdog.h"
+#include "oscillators.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pwm.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/rom_map.h"
 const int8_t WAVE128[] = {-1, 5, 12, 18, 24, 30, 36, 42, 48, 54, 60,
         65, 70, 75, 80, 85, 90, 94, 98, 102, 106,
         109, 112, 115, 117, 119, 121, 123, 124, 125, 126,
@@ -21,6 +27,7 @@ int main(void)
 	_ui32SysClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
 
 	// Initialize variable system parameters
+	gate=false;
 	_ui32SysTick = 0;
 	_ui32SysMiniTick = 0;
 	PwmPeriod = INIT_PWMPERIOD;
@@ -28,21 +35,17 @@ int main(void)
 	TickPeriod = INIT_TICKPERIOD;
 
 	// Initialize system hardware & peripherals
-	setupClocks();
-	setupTimers();
-	setupAudioOutput();
-	//setupDigitalOutputs();
-	setupDigitalInputs();
-	// initWatchdog();
-	 MAP_IntMasterEnable();
+	PortFunctionInit();
+    TimerInit();
+    AnalogInputInit();
+    PWMInit();
+
+	MAP_IntMasterEnable();
 
 	 // Initialize system state variables
-	_fFreq = 1;
 	while(1)
 	{
-		_nextSample  = (128+WAVE128[_ui32SysTick])/256.0*PwmPeriod;
-		_nextSample  += (128+WAVE128[(_ui32SysTick*2%128)])/256.0*PwmPeriod;
-		//while(MAP_TimerIntStatus(TIMER0_BASE,0)&TIMER_TIMA_TIMEOUT);
+		_nextSample  = (128+WAVE128[_ui32SysTick])/256.0*PwmPeriod*gate;
 		while(PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
 		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, _nextSample*0.5);
 	}

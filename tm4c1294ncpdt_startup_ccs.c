@@ -43,7 +43,6 @@ static void IntDefaultHandler(void);
 extern void _c_int00(void);
 extern void Timer0AIntHandler(void);
 extern void PWMGen2IntHandler(void);
-extern void WatchdogIntHandler(void);
 extern void PortEIntHandler(void);
 
 //*****************************************************************************
@@ -105,7 +104,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC Sequence 1
     IntDefaultHandler,                      // ADC Sequence 2
     IntDefaultHandler,                      // ADC Sequence 3
-	WatchdogIntHandler,                     // Watchdog timer
+	IntDefaultHandler,                     // Watchdog timer
     Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
     IntDefaultHandler,                      // Timer 1 subtimer A

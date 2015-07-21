@@ -4,27 +4,37 @@
  *  Created on: Jul 14, 2015
  *      Author: austen
  */
+#include <stdint.h>
+#include <stdbool.h>
 #include "interrupts.h"
-uint32_t timcount = 0;
+#include "systeminit.h"
+#include "oscillators.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/timer.h"
+#include "driverlib/gpio.h"
+#include "driverlib/pwm.h"
+#include "driverlib/rom_map.h"
+
+uint32_t timerCount = 0;
 uint32_t pollPeriod = 1;
 uint32_t sequencePeriod = 180;
 uint16_t sequenceInd = 0;
 float tickLengthSequence[] = {1,2,3,4,5,4,3,2};
 void Timer0AIntHandler(void){
 	MAP_TimerIntClear(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
-	if (!(timcount%sequencePeriod)){
+	if (!(timerCount%sequencePeriod)){
 		TickLength = tickLengthSequence[sequenceInd];
 		sequenceInd+=1;
-		if (sequenceInd>=8){
+		if (sequenceInd>=1){
 			sequenceInd=0;
 		}
 	}
-	if (!(timcount%pollPeriod)){
+	if (!(timerCount%pollPeriod)){
 		handleInputs();
 	}
-	timcount+=1;
-	if (timcount==0xFFFFFFFE){
-		timcount=0;
+	timerCount+=1;
+	if (timerCount==0xFFFFFFFE){
+		timerCount=0;
 	}
 }
 
@@ -42,27 +52,25 @@ void PWMGen2IntHandler(void){
 }
 
 void handleInputs(){
-	uint8_t buttons = ~MAP_GPIOPinRead(GPIO_PORTE_BASE,GPIO_INT_PIN_0 | GPIO_INT_PIN_1);
-	uint32_t *parameterAddr = &PwmPeriod;
-	uint32_t max_value = 4096;
-	uint32_t min_value = 128;
-	uint32_t step = 1;
-	if (buttons & GPIO_INT_PIN_0){
-		if (*(parameterAddr)+step > max_value){
-			*parameterAddr = min_value;
-		}else{
-			*parameterAddr += step;
-		}
-		PWMGenPeriodSet(PWM0_BASE,PWM_GEN_2,PwmPeriod);
-
-	}else if(buttons & GPIO_INT_PIN_1){
-		if (*(parameterAddr)-step <= min_value){
-			*parameterAddr = max_value;
-		}else{
-			*parameterAddr-=step;
-		}
-		PWMGenPeriodSet(PWM0_BASE,PWM_GEN_2,PwmPeriod);
+	uint8_t buttons = ~MAP_GPIOPinRead(GPIO_PORTE_BASE,ALL_BUTTONS);
+	bool anyButtonOn = false;
+	if (buttons & BUTTON_1){
+		setPWMFrequencyIndex(0);
+		anyButtonOn = true;
+	}else if(buttons & BUTTON_2){
+		setPWMFrequencyIndex(4);
+		anyButtonOn = true;
+	}else if(buttons & BUTTON_3){
+		setPWMFrequencyIndex(5);
+		anyButtonOn = true;
+	}else if(buttons & BUTTON_4){
+		setPWMFrequencyIndex(7);
+		anyButtonOn = true;
+	}else if(buttons & BUTTON_5){
+		setPWMFrequencyIndex(12);
+		anyButtonOn = true;
 	}
+	gate=anyButtonOn;
 	return;
 }
 

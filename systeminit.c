@@ -4,16 +4,49 @@
  *  Created on: Jul 14, 2015
  *      Author: austen
  */
+#include <stdint.h>
+#include <stdbool.h>
 #include "systeminit.h"
+#include "oscillators.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_gpio.h"
+#include "inc/tm4c1294ncpdt.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/gpio.h"
+#include "driverlib/timer.h"
+#include "driverlib/pwm.h"
+#include "driverlib/interrupt.h"
 
-void setupClocks(){
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG); // PWM output pin
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); // button inputs
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+//*****************************************************************************
+void
+PortFunctionInit(void)
+{
+    ////
+    // Enable Peripheral Clocks
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+
+    ////
+    // Enable pin PE0,PE1,PE2,PE3 for GPIOInput
+    MAP_GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, ALL_BUTTONS);
+    MAP_GPIOPadConfigSet(GPIO_PORTE_BASE, ALL_BUTTONS, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    ////
+    // Enable pin PG0 for PWM0 M0PWM4
+    MAP_GPIOPinConfigure(GPIO_PG0_M0PWM4);
+    MAP_GPIOPinTypePWM(GPIO_PORTG_BASE, GPIO_PIN_0);
+    // Enable pin PG1 for PWM0 M0PWM5
+    MAP_GPIOPinConfigure(GPIO_PG1_M0PWM5);
+    MAP_GPIOPinTypePWM(GPIO_PORTG_BASE, GPIO_PIN_1);
 }
 
-void setupAudioOutput(){
+void PWMInit(){
 	/*
 	 * Configure PWM
 	 * Peripheral: 	PWM
@@ -23,8 +56,6 @@ void setupAudioOutput(){
 	 */
 	MAP_SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 	MAP_PWMClockSet(PWM0_BASE,PWM_SYSCLK_DIV_1);// 120MHz
-	MAP_GPIOPinConfigure(GPIO_PG0_M0PWM4);
-	MAP_GPIOPinTypePWM(GPIO_PORTG_BASE, GPIO_PIN_0);
 	MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_2, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_GEN_SYNC_LOCAL);
 	MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, PwmPeriod-1);
 	MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, 1);
@@ -38,32 +69,11 @@ void setupAudioOutput(){
 	MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_2);
 }
 
-void setupDigitalOutputs(){
-	MAP_GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_1);
-	MAP_GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_1, 0);
-}
-
-void setupDigitalInputs(){
-	/*
-	 * Configure buttons
-	 * Peripheral: 	GPIO
-	 * Pins: 		Pin E0 (in,pullup), E1 (in,pullup)
-	 * Interrupts:
-	 *
-	 */
-	MAP_GPIODirModeSet(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1, GPIO_DIR_MODE_IN);
-	MAP_GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1,
-						 GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-	//MAP_GPIOIntTypeSet(GPIO_PORTE_BASE,GPIO_PIN_0 | GPIO_PIN_1, GPIO_LOW_LEVEL);
-	//MAP_IntEnable(INT_GPIOE);
-	//MAP_GPIOIntEnable(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-}
-
-void setupAnalogInputs(){
+void AnalogInputInit(){
 
 }
 
-void setupTimers(){
+void TimerInit(){
 	/*
 	 * Configure Timers
 	 * Peripheral: 	Timer 0A
