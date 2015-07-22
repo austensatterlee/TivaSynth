@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include "systeminit.h"
 #include "oscillators.h"
+#include "inputs.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
@@ -57,7 +58,7 @@ void PWMInit(){
 	MAP_SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 	MAP_PWMClockSet(PWM0_BASE,PWM_SYSCLK_DIV_1);// 120MHz
 	MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_2, PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_GEN_SYNC_LOCAL);
-	MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, PwmPeriod-1);
+	MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, INIT_PWMPERIOD);
 	MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, 1);
 
 	MAP_PWMIntEnable(PWM0_BASE,PWM_INT_GEN_2);

@@ -11,20 +11,26 @@
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 #include <stdint.h>
 #include <stdbool.h>
-void setPWMFrequencyIndex(uint16_t);
+void OscillatorsInit(void);
+void setOscillator(uint8_t,uint8_t*);
+void setNote(uint8_t,uint16_t);
+void releaseOscillator(uint8_t);
+void tickOscillators(void);
+uint16_t getNextSample(void);
 // Math constants
 #define APP_PI      3.1415926535897932384626433832795f
 // System parameters
-#define INIT_TICKLENGTH 1
-#define INIT_PWMPERIOD 1024
-#define INIT_TICKPERIOD 127
-float TickLength; // reset value of _ui32SysMiniTick
-volatile uint32_t _ui32SysTick;
-volatile uint32_t _ui32SysMiniTick;
-uint32_t TickPeriod; // reset value of _ui32SysTick
-uint32_t PwmPeriod;  // PWM compare value (in CPU clock cycles)
-uint32_t _nextSample;
-bool gate;
+#define INIT_TICKSTEP 1
+#define INIT_PWMPERIOD 1000
+#define INIT_TICKPERIOD 512
+#define NUM_OSCILLATORS 4
+struct Oscillator {
+	float TickStep;
+	uint16_t TickPeriod;
+	float tick;
+	bool gate;
+	uint8_t *wavetable;
+};
 // System states
 uint32_t _ui32SysClock; // system clock speed
 #endif /* OSCILLATORS_H_ */
