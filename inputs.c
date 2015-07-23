@@ -14,7 +14,7 @@
 #define ACTIVE 2
 
 uint32_t buttons[] = {BUTTON_1,BUTTON_2,BUTTON_3,BUTTON_4,BUTTON_5};
-uint8_t buttonNotes[] = {12,24,27,29,31};
+uint8_t buttonNotes[] = {12,16,19,23,24};
 int osc2button[NUM_OSCILLATORS];
 int button2osc[NUM_BUTTONS];
 int buttonStatus[NUM_BUTTONS];
@@ -37,7 +37,7 @@ void assignNextOscToButton(uint8_t buttonNum){
 		buttonStatus[osc2button[currOsc]-1]=INACTIVE;
 		releaseOscillator(currOsc);
 	}
-	setNote(currOsc,buttonNotes[buttonNum]);
+	triggerNote(currOsc,buttonNotes[buttonNum]);
 	osc2button[currOsc] = buttonNum+1;
 	button2osc[buttonNum] = currOsc;
 	buttonStatus[buttonNum] = ACTIVE;

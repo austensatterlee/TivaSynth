@@ -23,19 +23,21 @@ float tickStepTable[] = {0.46933333,  0.49724135,  0.52680885,  0.55813454,  0.5
         2.65495026,  2.81282182,  2.98008091,  3.15728574,  3.34502772,
         3.54393342,  3.75466667};
 
-struct Oscillator oscillators[NUM_OSCILLATORS];
+struct Oscillator voiceOscillators[NUM_OSCILLATORS];
+struct Oscillator amplitudeOscillators[NUM_OSCILLATORS];
 uint8_t activeVoiceCount;
 
 void OscillatorsInit(){
-	setOscillator(0,SINE512);
-	setOscillator(1,TRI512);
-	setOscillator(2,SINOCT512);
-	setOscillator(3,COS512);
+	initOscillator(&voiceOscillators[0],TRI512);
+	initOscillator(&voiceOscillators[1],TRI512);
+	initOscillator(&amplitudeOscillators[0],TRI512);
+	amplitudeOscillators[0].TickStep = 0.00109;
+	initOscillator(&amplitudeOscillators[1],TRI512);
+	amplitudeOscillators[1].TickStep = 0.00109;
 	activeVoiceCount=0;
 }
 
-void setOscillator(uint8_t oscNum,uint8_t *wavetableAddr){
-	struct Oscillator *osc = oscillators+oscNum;
+void initOscillator(struct Oscillator* osc, uint8_t* wavetableAddr){
 	osc->TickPeriod = INIT_TICKPERIOD;
 	osc->TickStep 	= 0;
 	osc->tick 		= 0;
@@ -43,41 +45,53 @@ void setOscillator(uint8_t oscNum,uint8_t *wavetableAddr){
 	osc->wavetable 	= wavetableAddr;
 }
 
-void setNote(uint8_t oscNum,uint16_t freqIndex){
-	struct Oscillator *osc = oscillators+oscNum;
-	osc->TickStep = tickStepTable[freqIndex];
-	osc->gate = 1;
+void triggerNote(uint8_t oscNum,uint16_t freqIndex){
+	(voiceOscillators+oscNum)->TickStep = tickStepTable[freqIndex];
+	(amplitudeOscillators+oscNum)->gate = 1;
+	(amplitudeOscillators+oscNum)->tick = 0;
 	activeVoiceCount++;
 }
 
 void releaseOscillator(uint8_t oscNum){
-	struct Oscillator *osc = oscillators+oscNum;
-	osc->TickStep = 0;
-	osc->tick = 0;
-	osc->gate = 0;
+	(voiceOscillators+oscNum)->TickStep = 0;
+	(amplitudeOscillators+oscNum)->gate = 0;
 	activeVoiceCount--;
 }
 
-uint16_t getNextSample(){
+float getNextSample(uint8_t oscNum, uint8_t oscType){
 	float nextSample = 0;
 	float oscSample = 0;
-	struct Oscillator *osc = oscillators+NUM_OSCILLATORS;
+	struct Oscillator *osc;
+	if(oscType==VOICE){
+		osc=voiceOscillators+oscNum;
+		osc->gate = getNextSample(oscNum,AMPLITUDE);
+	}else if(oscType==AMPLITUDE){
+		osc=amplitudeOscillators+oscNum;
+	}
 	uint16_t bNeighbor;
 	uint16_t fNeighbor;
-	while(osc--!=oscillators){
-		if(osc->TickStep){
-			bNeighbor = (osc->wavetable)[(int)(osc->tick)];
-			fNeighbor = (osc->wavetable)[(int)(1+osc->tick)];
-			oscSample = (fNeighbor-bNeighbor)*(osc->tick-(int)(osc->tick))+bNeighbor;
-			nextSample += ((oscSample-1)/(NUM_OSCILLATORS*255.0f)*INIT_PWMPERIOD)*(osc->gate);
-		}
+	if(osc->TickStep){
+		bNeighbor = (osc->wavetable)[(int)(osc->tick)];
+		fNeighbor = (osc->wavetable)[(int)(1+osc->tick)];
+		oscSample = (fNeighbor-bNeighbor)*(osc->tick-(int)(osc->tick))+bNeighbor;
+		nextSample += ((oscSample-1)/255.0f)*(osc->gate);
 	}
-	return (uint16_t)(nextSample);
+	return nextSample;
 }
 
 void tickOscillators(){
-	struct Oscillator *osc = oscillators+NUM_OSCILLATORS;
-	while(osc--!=oscillators){
+	struct Oscillator* osc;
+	uint8_t i = NUM_OSCILLATORS;
+	while(i--){
+		osc = (voiceOscillators+i);
+		if (osc->TickStep){
+			osc->tick+=osc->TickStep;
+			if (osc->tick >= osc->TickPeriod)
+			{
+				osc->tick -= osc->TickPeriod;
+			}
+		}
+		osc = (amplitudeOscillators+i);
 		if (osc->TickStep){
 			osc->tick+=osc->TickStep;
 			if (osc->tick >= osc->TickPeriod)

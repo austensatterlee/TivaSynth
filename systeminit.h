@@ -8,7 +8,7 @@
 #ifndef SYSTEMINIT_H_
 #define SYSTEMINIT_H_
 
-#define TA0_PERIOD	10000
+#define TA0_PERIOD	50000
 
 extern void PortFunctionInit(void);
 extern void PWMInit(void);

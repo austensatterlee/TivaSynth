@@ -25,9 +25,15 @@ int main(void)
 	MAP_IntMasterEnable();
 
 	 // Initialize system state variables
+	float nextSample;
+	uint8_t i;
 	while(1)
 	{
+		nextSample = 0;
+		for(i=0;i<NUM_OSCILLATORS;i++){
+			nextSample+=getNextSample(i,VOICE)/NUM_OSCILLATORS*INIT_PWMPERIOD;
+		}
 		while(MAP_PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
-		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, getNextSample());
+		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, (uint32_t)nextSample);
 	}
 }
