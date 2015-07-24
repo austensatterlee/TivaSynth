@@ -5,6 +5,7 @@
 #include "oscillators.h"
 #include "inputs.h"
 #include "inc/hw_memmap.h"
+#include "driverlib/debug.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/pwm.h"
 #include "driverlib/interrupt.h"
@@ -16,24 +17,21 @@ int main(void)
 
 	// Initialize system hardware & peripherals
 	PortFunctionInit();
-    TimerInit();
     AnalogInputInit();
-    PWMInit();
     OscillatorsInit();
     InputQueueInit();
+    PWMInit();
+    TimerInit();
 
 	MAP_IntMasterEnable();
 
 	 // Initialize system state variables
 	float nextSample;
-	uint8_t i;
 	while(1)
 	{
-		nextSample = 0;
-		for(i=0;i<NUM_OSCILLATORS;i++){
-			nextSample+=getNextSample(i,VOICE)/NUM_OSCILLATORS*INIT_PWMPERIOD;
-		}
+		mainOsc.dt	= getNextSample(&pitchLFO)+1;
+		nextSample  = getNextSample(&mainOsc);
 		while(MAP_PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
-		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, (uint32_t)nextSample);
+		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, (uint32_t)(nextSample*(INIT_PWMPERIOD-1)));
 	}
 }

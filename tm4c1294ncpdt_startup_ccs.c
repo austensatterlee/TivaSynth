@@ -42,6 +42,8 @@ static void IntDefaultHandler(void);
 //*****************************************************************************
 extern void _c_int00(void);
 extern void Timer0AIntHandler(void);
+extern void Timer1AIntHandler(void);
+extern void Timer2AIntHandler(void);
 extern void PWMGen2IntHandler(void);
 extern void PortEIntHandler(void);
 
@@ -107,9 +109,9 @@ void (* const g_pfnVectors[])(void) =
 	IntDefaultHandler,                     // Watchdog timer
     Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
-    IntDefaultHandler,                      // Timer 1 subtimer A
+	Timer1AIntHandler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
-    IntDefaultHandler,                      // Timer 2 subtimer A
+	Timer2AIntHandler,                      // Timer 2 subtimer A
     IntDefaultHandler,                      // Timer 2 subtimer B
     IntDefaultHandler,                      // Analog Comparator 0
     IntDefaultHandler,                      // Analog Comparator 1

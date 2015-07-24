@@ -7,97 +7,86 @@
 #include <math.h>
 #include "oscillators.h"
 #include "driverlib/pwm.h"
+#include "driverlib/timer.h"
+#include "driverlib/rom_map.h"
 #include "inc/hw_memmap.h"
 #include "wavetables.h"
+#include "envelope.h"
 
 /* Tick steps to generate notes from A3 to A5 with (120e6/256) Hz PWM
  * Generated with the formula:
  * 		tick_step = note_freq/(cpu_freq/(pwm_period*wavetable_length))
  */
-float tickStepTable[] = {0.46933333,  0.49724135,  0.52680885,  0.55813454,  0.59132295,
-        0.62648484,  0.66373757,  0.70320545,  0.74502023,  0.78932144,
-        0.83625693,  0.88598335,  0.93866667,  0.99448269,  1.05361771,
-        1.11626908,  1.18264589,  1.25296968,  1.32747513,  1.40641091,
-        1.49004045,  1.57864287,  1.67251386,  1.77196671,  1.87733333,
-        1.98896538,  2.10723542,  2.23253816,  2.36529178,  2.50593935,
-        2.65495026,  2.81282182,  2.98008091,  3.15728574,  3.34502772,
-        3.54393342,  3.75466667};
+float tickStepTable[] = {0.2816    ,  0.29834481,  0.31608531,  0.33488072,  0.35479377,
+        0.3758909 ,  0.39824254,  0.42192327,  0.44701214,  0.47359286,
+        0.50175416,  0.53159001,  0.5632    ,  0.59668961,  0.63217063,
+        0.66976145,  0.70958754,  0.75178181,  0.79648508,  0.84384655,
+        0.89402427,  0.94718572,  1.00350832,  1.06318003,  1.1264    ,
+        1.19337923,  1.26434125,  1.33952289,  1.41917507,  1.50356361,
+        1.59297016,  1.68769309,  1.78804854,  1.89437144,  2.00701663,
+        2.12636005,  2.2528};
 
-struct Oscillator voiceOscillators[NUM_OSCILLATORS];
-struct Oscillator amplitudeOscillators[NUM_OSCILLATORS];
-uint8_t activeVoiceCount;
-
+/* Equivalent to above, but for a hardware timer (w/CPU freq @ 120MHz and 256-length wavetable) */
+uint32_t timerLoadTable[] = {
+		       1065, 1005,  949,  895,  845,  798,  753,  711,  671,  633,  597,
+		        564,  532,  502,  474,  447,  422,  399,  376,  355,  335,  316,
+		        298,  282,  266,  251,  237,  223,  211,  199,  188,  177,  167,
+		        158,  149,  141,  133
+};
+Osc mainOsc;
+Env ampEnv;
+Osc pitchLFO;
+Env ampEnvLFO;
 void OscillatorsInit(){
-	initOscillator(&voiceOscillators[0],TRI512);
-	initOscillator(&voiceOscillators[1],TRI512);
-	initOscillator(&amplitudeOscillators[0],TRI512);
-	amplitudeOscillators[0].TickStep = 0.00109;
-	initOscillator(&amplitudeOscillators[1],TRI512);
-	amplitudeOscillators[1].TickStep = 0.00109;
-	activeVoiceCount=0;
+	initEnvelope(&ampEnv,&SAW256,200,1,1.0/256.0,3500);
+	initEnvelope(&ampEnvLFO,&EXPTRI256,200,2000,1.0/256.0,350);
+	initOscillator(&mainOsc,&COS256,&ampEnv,256,0,1);
+	initOscillator(&pitchLFO,&COS256,&ampEnvLFO,0xFF,-127,5);
 }
 
-void initOscillator(struct Oscillator* osc, uint8_t* wavetableAddr){
-	osc->TickPeriod = INIT_TICKPERIOD;
-	osc->TickStep 	= 0;
-	osc->tick 		= 0;
-	osc->gate 		= 0;
-	osc->wavetable 	= wavetableAddr;
+void initOscillator(Osc* osc, Wavetable* wavetable, Env* env, uint16_t aDivisor, int32_t aBias, uint32_t timerLoad){
+	osc->wavetable 			= wavetable;
+	osc->wavetableSize 		= wavetable->size;
+	osc->env				= env;
+	osc->amplitudeDivisor 	= aDivisor;
+	osc->amplitudeBias 		= aBias;
+	osc->timerLoad			= timerLoad;
+	osc->dt					= 1;
+	osc->tick 				= 0;
+	osc->gate 				= 0;
 }
 
-void triggerNote(uint8_t oscNum,uint16_t freqIndex){
-	(voiceOscillators+oscNum)->TickStep = tickStepTable[freqIndex];
-	(amplitudeOscillators+oscNum)->gate = 1;
-	(amplitudeOscillators+oscNum)->tick = 0;
-	activeVoiceCount++;
+void setMainOscNote(uint16_t freqIndex){
+	triggerEnvelope(&ampEnv);
+	triggerEnvelope(&ampEnvLFO);
+	mainOsc.gate=1.0;
+	MAP_TimerLoadSet(TIMER1_BASE,TIMER_A,timerLoadTable[freqIndex]);
 }
 
-void releaseOscillator(uint8_t oscNum){
-	(voiceOscillators+oscNum)->TickStep = 0;
-	(amplitudeOscillators+oscNum)->gate = 0;
-	activeVoiceCount--;
+void releaseMainOsc(){
+	mainOsc.gate=0.0;
+	releaseEnvelope(&ampEnv);
+	releaseEnvelope(&ampEnvLFO);
 }
 
-float getNextSample(uint8_t oscNum, uint8_t oscType){
-	float nextSample = 0;
+float getNextSample(Osc* osc){
 	float oscSample = 0;
-	struct Oscillator *osc;
-	if(oscType==VOICE){
-		osc=voiceOscillators+oscNum;
-		osc->gate = getNextSample(oscNum,AMPLITUDE);
-	}else if(oscType==AMPLITUDE){
-		osc=amplitudeOscillators+oscNum;
-	}
 	uint16_t bNeighbor;
 	uint16_t fNeighbor;
-	if(osc->TickStep){
-		bNeighbor = (osc->wavetable)[(int)(osc->tick)];
-		fNeighbor = (osc->wavetable)[(int)(1+osc->tick)];
-		oscSample = (fNeighbor-bNeighbor)*(osc->tick-(int)(osc->tick))+bNeighbor;
-		nextSample += ((oscSample-1)/255.0f)*(osc->gate);
+	osc->gate = getEnvelopeSample(osc->env);
+	if(osc->gate){
+		bNeighbor = (osc->wavetable->wave)[(int)(osc->tick)];
+		fNeighbor = (osc->wavetable->wave)[(int)(1+osc->tick)];
+		oscSample = (fNeighbor-bNeighbor)*(osc->tick-(int)(osc->tick))+bNeighbor+osc->amplitudeBias;
+		oscSample = (oscSample/osc->amplitudeDivisor)*(osc->gate);
 	}
-	return nextSample;
+	return oscSample;
 }
 
-void tickOscillators(){
-	struct Oscillator* osc;
-	uint8_t i = NUM_OSCILLATORS;
-	while(i--){
-		osc = (voiceOscillators+i);
-		if (osc->TickStep){
-			osc->tick+=osc->TickStep;
-			if (osc->tick >= osc->TickPeriod)
-			{
-				osc->tick -= osc->TickPeriod;
-			}
-		}
-		osc = (amplitudeOscillators+i);
-		if (osc->TickStep){
-			osc->tick+=osc->TickStep;
-			if (osc->tick >= osc->TickPeriod)
-			{
-				osc->tick -= osc->TickPeriod;
-			}
-		}
+void tickOscillator(Osc* osc){
+	osc->tick+=osc->dt;
+	if (osc->tick >= osc->wavetableSize)
+	{
+		osc->tick = 0;
 	}
 }

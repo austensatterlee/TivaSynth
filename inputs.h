@@ -11,15 +11,15 @@
 #include "driverlib/gpio.h"
 
 void InputQueueInit(void);
-void assignNextOscToButton(uint8_t);
+void triggerGate(uint8_t);
 void handleInputs(void);
 
-#define NUM_BUTTONS 5
-#define BUTTON_1 GPIO_PIN_4
-#define BUTTON_2 GPIO_PIN_0
-#define BUTTON_3 GPIO_PIN_1
-#define BUTTON_4 GPIO_PIN_2
-#define BUTTON_5 GPIO_PIN_5
-#define ALL_BUTTONS (BUTTON_1|BUTTON_2|BUTTON_3|BUTTON_4|BUTTON_5)
+#define NUM_E_BUTTONS 5
+#define E_BUTTON_1 GPIO_PIN_4
+#define E_BUTTON_2 GPIO_PIN_0
+#define E_BUTTON_3 GPIO_PIN_1
+#define E_BUTTON_4 GPIO_PIN_2
+#define E_BUTTON_5 GPIO_PIN_5
+#define ALL_E_BUTTONS (E_BUTTON_1|E_BUTTON_2|E_BUTTON_3|E_BUTTON_4|E_BUTTON_5)
 
 #endif /* INPUTS_H_ */

@@ -8,64 +8,41 @@
 #include "driverlib/gpio.h"
 #include "inc/hw_memmap.h"
 #include "driverlib/rom_map.h"
-// Possible button status'
-#define READY 0
-#define INACTIVE 1
-#define ACTIVE 2
 
-uint32_t buttons[] = {BUTTON_1,BUTTON_2,BUTTON_3,BUTTON_4,BUTTON_5};
-uint8_t buttonNotes[] = {12,16,19,23,24};
-int osc2button[NUM_OSCILLATORS];
-int button2osc[NUM_BUTTONS];
-int buttonStatus[NUM_BUTTONS];
-int currOsc;
+uint32_t buttons[] = {E_BUTTON_1,E_BUTTON_2,E_BUTTON_3,E_BUTTON_4,E_BUTTON_5};
+uint8_t buttonNotes[] = {0,3,2,5,9};
+uint8_t prevButtonStates;
+uint8_t activeButton;
 
 void InputQueueInit(){
-	uint8_t i;
-	for (i=0;i<NUM_OSCILLATORS;i++){
-		osc2button[i] = 0;
-	}
-	for (i=0;i<NUM_BUTTONS;i++){
-		button2osc[i] = 0;
-		buttonStatus[i] = READY;
-	}
-	currOsc = 0;
+	prevButtonStates = 0;
+	activeButton = 0;
 }
 
-void assignNextOscToButton(uint8_t buttonNum){
-	if (osc2button[currOsc]!=0){
-		buttonStatus[osc2button[currOsc]-1]=INACTIVE;
-		releaseOscillator(currOsc);
-	}
-	triggerNote(currOsc,buttonNotes[buttonNum]);
-	osc2button[currOsc] = buttonNum+1;
-	button2osc[buttonNum] = currOsc;
-	buttonStatus[buttonNum] = ACTIVE;
-	currOsc++;
-	if (currOsc==NUM_OSCILLATORS){
-		currOsc=0;
-	}
+void triggerGate(uint8_t buttonNum){
+	setMainOscNote(buttonNotes[buttonNum]);
 }
 
 void handleInputs(){
-	uint8_t buttonStates = ~MAP_GPIOPinRead(GPIO_PORTE_BASE,ALL_BUTTONS);
+	uint8_t buttonStates = ~MAP_GPIOPinRead(GPIO_PORTE_BASE,ALL_E_BUTTONS);
+	uint8_t buttonChanges = buttonStates^prevButtonStates;
 	uint8_t i;
-	for(i=0;i<NUM_BUTTONS;i++){
-		if(buttonStates & buttons[i]){
-			if(buttonStatus[i]==READY){
-				// if button is pressed but not already assigned to an osc
-				assignNextOscToButton(i);
+	for(i=0;i<NUM_E_BUTTONS;i++){
+		if((buttonChanges & buttons[i]) && (buttonStates & buttons[i])){
+			// if button was just pressed
+			if(activeButton!=(i+1)){
+				triggerGate(i);
+				activeButton=(i+1);
 			}
-		}else if (buttonStatus[i]!=READY){
-			// if button is not pressed
-			if (buttonStatus[i]==ACTIVE){
-				// if button has been released since it was last pressed
-				releaseOscillator(button2osc[i]);
-				osc2button[button2osc[i]]=0;
-				currOsc = button2osc[i];
+		}else if ((buttonChanges & buttons[i]) && !(buttonStates & buttons[i])){
+			// if button was just released
+			if (activeButton==(i+1)){
+				releaseMainOsc();
+				activeButton=0;
 			}
-			buttonStatus[i]=READY;
 		}
 	}
+
+	prevButtonStates = buttonStates;
 	return;
 }
