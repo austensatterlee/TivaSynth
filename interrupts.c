@@ -17,14 +17,21 @@
 #include "driverlib/pwm.h"
 #include "driverlib/rom_map.h"
 
-uint32_t timer0ACount = 0;
-uint32_t pollPeriod = 1;
+uint32_t timer0ACount 		= 0;
+uint32_t pollPeriod 		= 1;
+uint16_t ledPeriod			= 1000;
+uint8_t ui8PortNLEDStates 	= GPIO_PIN_0;
 void Timer0AIntHandler(void){
 	MAP_TimerIntClear(TIMER0_BASE,TIMER_TIMA_TIMEOUT);
 	timer0ACount++;
 	if (timer0ACount>=pollPeriod){
-		handleInputs();
+		handleDigitalInputs();
+		handleAnalogInputs();
 		timer0ACount=0;
+	}
+	if (timer0ACount>=ledPeriod){
+		ui8PortNLEDStates ^= (GPIO_PIN_0|GPIO_PIN_1);
+		GPIOPinWrite(GPIO_PORTN_BASE,GPIO_PIN_0|GPIO_PIN_1,ui8PortNLEDStates);
 	}
 }
 
@@ -47,12 +54,12 @@ void Timer2AIntHandler(void){
 		timer2ACounts[0]=0;
 	}
 	timer2ACounts[1]++;
-	if (timer2ACounts[1]>=ampEnvLFO.timerLoad){
+	if (timer2ACounts[1]>=*ampEnvLFO.currTimerLoad){
 		tickEnvelope(&ampEnvLFO);
 		timer2ACounts[1]=0;
 	}
 	timer2ACounts[2]++;
-	if (timer2ACounts[2]>=ampEnv.timerLoad){
+	if (timer2ACounts[2]>=*ampEnv.currTimerLoad){
 		tickEnvelope(&ampEnv);
 		timer2ACounts[2]=0;
 	}

@@ -15,7 +15,9 @@
 typedef struct Envelope_st {
 	Wavetable *wavetable;
 	uint16_t sustainIndex;
-	uint32_t timerLoad;
+	uint32_t timerLoadAtk;
+	uint32_t timerLoadRel;
+	uint32_t *currTimerLoad;
 	float currAmplitude;
 	float gain;
 	float relRate;
@@ -23,7 +25,7 @@ typedef struct Envelope_st {
 	float gate;
 } Env;
 
-void initEnvelope(Env*, Wavetable*, uint16_t , uint32_t, float, float);
+void initEnvelope(Env*, Wavetable*, uint16_t , uint32_t, uint32_t, float);
 bool tickEnvelope(Env*);
 void releaseEnvelope(Env*);
 void triggerEnvelope(Env*);

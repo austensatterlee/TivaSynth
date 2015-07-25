@@ -16,7 +16,7 @@ int main(void)
 	_ui32SysClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
 
 	// Initialize system hardware & peripherals
-	PortFunctionInit();
+	DigitalInputInit();
     AnalogInputInit();
     OscillatorsInit();
     InputQueueInit();
@@ -25,6 +25,7 @@ int main(void)
 
 	MAP_IntMasterEnable();
 
+
 	 // Initialize system state variables
 	float nextSample;
 	while(1)
@@ -32,6 +33,6 @@ int main(void)
 		mainOsc.dt	= getNextSample(&pitchLFO)+1;
 		nextSample  = getNextSample(&mainOsc);
 		while(MAP_PWMGenIntStatus(PWM0_BASE,PWM_GEN_2,true));
-		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, (uint32_t)(nextSample*(INIT_PWMPERIOD-1)));
+		MAP_PWMPulseWidthSet(PWM0_BASE, PWM_OUT_4, (uint32_t)(nextSample*(INIT_PWMPERIOD-2))+1);
 	}
 }

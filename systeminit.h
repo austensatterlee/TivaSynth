@@ -8,7 +8,7 @@
 #ifndef SYSTEMINIT_H_
 #define SYSTEMINIT_H_
 
-extern void PortFunctionInit(void);
+extern void DigitalInputInit(void);
 extern void PWMInit(void);
 extern void AnalogInputInit(void);
 extern void TimerInit(void);

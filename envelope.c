@@ -10,15 +10,18 @@
 #include "envelope.h"
 #include "wavetables.h"
 
-void initEnvelope(Env* env, Wavetable* wavetable,uint16_t sustainIndex, uint32_t timerLoad, float gain, float relTimeConstant){
+void initEnvelope(Env* env, Wavetable* wavetable,uint16_t sustainIndex,
+				  uint32_t timerLoadAtk, uint32_t timerLoadRel, float gain){
 	 env->wavetable 		= wavetable;
 	 env->gain 				= gain;
 	 env->tick 				= 0;
 	 env->gate 				= 0;
 	 env->currAmplitude		= 0;
-	 env->relRate			= expf(-5.2983174/relTimeConstant);
+	 env->relRate			= 0.7;
 	 env->sustainIndex 		= sustainIndex;
-	 env->timerLoad 		= timerLoad;
+	 env->timerLoadAtk 		= timerLoadAtk;
+	 env->timerLoadRel 		= timerLoadRel;
+	 env->currTimerLoad 	= &env->timerLoadAtk;
 }
 
 bool tickEnvelope(Env* env){
@@ -36,14 +39,16 @@ bool tickEnvelope(Env* env){
 }
 
 void triggerEnvelope(Env* env){
-	env->tick = 0;
 	if(!env->gate){
 		env->gate=1;
+		env->tick = 0.0;
+		env->currTimerLoad = &env->timerLoadAtk;
 	}
 }
 
 void releaseEnvelope(Env* env){
 	env->gate=0;
+	env->currTimerLoad = &env->timerLoadRel;
 }
 
 float getEnvelopeSample(Env* env){

@@ -26,22 +26,25 @@ float tickStepTable[] = {0.2816    ,  0.29834481,  0.31608531,  0.33488072,  0.3
         1.59297016,  1.68769309,  1.78804854,  1.89437144,  2.00701663,
         2.12636005,  2.2528};
 
-/* Equivalent to above, but for a hardware timer (w/CPU freq @ 120MHz and 256-length wavetable) */
+/* Equivalent to above (but 110Hz to 880Hz), but for a hardware timer's period (w/CPU freq @ 120MHz and 256-length wavetable)
+ * Calculate with:
+ * 		timer_period = cpu_freq/(freq*wavetable_length)
+ */
 uint32_t timerLoadTable[] = {
-		       1065, 1005,  949,  895,  845,  798,  753,  711,  671,  633,  597,
-		        564,  532,  502,  474,  447,  422,  399,  376,  355,  335,  316,
-		        298,  282,  266,  251,  237,  223,  211,  199,  188,  177,  167,
-		        158,  149,  141,  133
+				4261, 4022, 3796, 3583, 3382, 3192, 3013, 2844, 2684, 2533, 2391,
+		       2257, 2130, 2011, 1898, 1791, 1691, 1596, 1506, 1422, 1342, 1266,
+		       1195, 1128, 1065, 1005,  949,  895,  845,  798,  753,  711,  671,
+		        633,  597,  564,  532
 };
 Osc mainOsc;
 Env ampEnv;
 Osc pitchLFO;
 Env ampEnvLFO;
 void OscillatorsInit(){
-	initEnvelope(&ampEnv,&SAW256,200,1,1.0/256.0,3500);
-	initEnvelope(&ampEnvLFO,&EXPTRI256,200,2000,1.0/256.0,350);
-	initOscillator(&mainOsc,&COS256,&ampEnv,256,0,1);
-	initOscillator(&pitchLFO,&COS256,&ampEnvLFO,0xFF,-127,5);
+	initEnvelope(&ampEnv,&EXPTRI256,125,10,10,1.0/256.0);
+	initEnvelope(&ampEnvLFO,&SAW256,200,50,50,1.0/256.0);
+	initOscillator(&mainOsc,&SAW256,&ampEnv,256,0,1);
+	initOscillator(&pitchLFO,&EXPTRI256,&ampEnvLFO,4080,-127,5);
 }
 
 void initOscillator(Osc* osc, Wavetable* wavetable, Env* env, uint16_t aDivisor, int32_t aBias, uint32_t timerLoad){
@@ -57,14 +60,10 @@ void initOscillator(Osc* osc, Wavetable* wavetable, Env* env, uint16_t aDivisor,
 }
 
 void setMainOscNote(uint16_t freqIndex){
-	triggerEnvelope(&ampEnv);
-	triggerEnvelope(&ampEnvLFO);
-	mainOsc.gate=1.0;
 	MAP_TimerLoadSet(TIMER1_BASE,TIMER_A,timerLoadTable[freqIndex]);
 }
 
 void releaseMainOsc(){
-	mainOsc.gate=0.0;
 	releaseEnvelope(&ampEnv);
 	releaseEnvelope(&ampEnvLFO);
 }

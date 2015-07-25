@@ -32,7 +32,7 @@ void tickOscillator(Osc*);
 
 float getNextSample(Osc*);
 // System parameters
-#define INIT_PWMPERIOD 500
+#define INIT_PWMPERIOD 1000
 // System states
 uint32_t _ui32SysClock; // system clock speed
 extern Osc mainOsc;
