@@ -7,10 +7,42 @@
 
 #ifndef SYSTEMINIT_H_
 #define SYSTEMINIT_H_
+#include <stdint.h>
+#include "input.h"
+#include "oscillator.h"
 
-extern void DigitalInputInit(void);
-extern void PWMInit(void);
-extern void AnalogInputInit(void);
-extern void TimerInit(void);
+extern void setupDigitalInputs(void);
+extern void setupPWM(void);
+extern void setupSSI(void);
+extern void setupAnalogInputs(void);
+extern void setupTimers(void);
+
+// System parameters
+#define SSI_BAUDRATE 1200000
+#define PWMPERIOD 500
+#define FS 100000
+#define INPUT_FS 600
+#define MOD_FS 600
+// System states
+uint32_t g_sampleCount;
+uint32_t g_ui32SysClock; // system clock speed
+struct {
+	uint16_t readInputs 		: 1;
+	uint16_t modulate			: 1;
+	uint16_t outputNextSample 	: 1;
+} system_flags;
+
+Osc mainOsc;
+Osc pitchLFO;
+
+#define NUM_BUTTONS 5
+#define NUM_KNOBS 2
+#define E_BUTTON_1 GPIO_PIN_4
+#define E_BUTTON_2 GPIO_PIN_0
+#define E_BUTTON_3 GPIO_PIN_1
+#define E_BUTTON_4 GPIO_PIN_2
+#define E_BUTTON_5 GPIO_PIN_5
+#define ALL_E_BUTTONS (E_BUTTON_1|E_BUTTON_2|E_BUTTON_3|E_BUTTON_4|E_BUTTON_5)
+Knob knobs[NUM_KNOBS] = {{0}};
 
 #endif /* SYSTEMINIT_H_ */
