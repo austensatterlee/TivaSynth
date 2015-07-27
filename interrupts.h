@@ -15,5 +15,6 @@ void Timer2AIntHandler(void);
 void PWMGen2IntHandler(void);
 void PortEIntHandler(void);
 
+extern void setMainOscNote(uint16_t);
 
 #endif /* INTERRUPTS_H_ */
