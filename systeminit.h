@@ -21,16 +21,16 @@ extern void setupTimers(void);
 #define SSI_BAUDRATE 1200000
 #define PWMPERIOD 500
 #define FS 150000
-#define INPUT_FS 600
+#define INPUT_FS 6000
 #define MOD_FS 20000
 // System states
 uint32_t g_sampleCount;
 uint32_t g_ui32SysClock; // system clock speed
 
 struct {
-	uint16_t readInputs 		: 1;
-	uint16_t modulate			: 1;
-	uint16_t outputNextSample 	: 1;
+	uint16_t readInputs :1;
+	uint16_t modulate :1;
+	uint16_t outputNextSample :1;
 } system_flags;
 
 #define NUM_BUTTONS 5

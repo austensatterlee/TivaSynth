@@ -13,25 +13,17 @@
 #include "oscillator.h"
 
 typedef struct {
-	void 	(*send_fn)(void*,float,uint8_t);
-	void* 	send_target;
+	void (*send_fn)(void*, float, uint8_t);
+	void* send_target;
 	uint8_t out_port;
-	float	gain;
+	float gain;
 	int32_t currValue;
 	int32_t lastValue;
 } Knob;
 
-void initKnob(Knob*,void*,uint8_t, float);
+void initKnob(Knob*, void*, uint8_t, float);
 void handleDigitalInputs(void);
 void handleAnalogInputs(Knob[]);
-void setSequenceFreq(float);
-
-#define NUM_SEQUENCES 1
-#define SEQUENCE_LENGTH 4
-uint32_t seqChangePeriod;
-extern uint16_t sequenceTable[NUM_SEQUENCES][SEQUENCE_LENGTH];
-extern uint8_t currSequence;
-extern uint8_t currSequenceNote;
 
 extern Osc mainOsc1;
 extern Osc mainOsc2;
