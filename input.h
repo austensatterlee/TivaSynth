@@ -7,10 +7,7 @@
 
 #ifndef INPUT_H_
 #define INPUT_H_
-#include <stdbool.h>
 #include <stdint.h>
-#include "driverlib/gpio.h"
-#include "oscillator.h"
 
 typedef struct {
 	void (*send_fn)(void*, float, uint8_t);

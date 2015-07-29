@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <driverlib/ssi.h>
+#include <driverlib/gpio.h>
 #include <driverlib/adc.h>
 #include <driverlib/sysctl.h>
 #include <inc/hw_memmap.h>
@@ -9,24 +10,49 @@
 #include <driverlib/timer.h>
 #include <driverlib/rom_map.h>
 #include <math.h>
+#include <driverlib/debug.h>
 
-#include "input.h"
 #include "systeminit.h"
+#include "input.h"
 #include "oscillator.h"
+extern void triggerGate();
+#define APP_PI 3.141592653589793f
 
+/* System variables */
+struct {
+	uint16_t readInputs :1;
+	uint16_t modulate :1;
+	uint16_t outputNextSample :1;
+} system_flags;
+
+uint32_t g_sampleCount;
+uint32_t g_ui32SysClock;
+
+/* Interrupts */
 void Timer0AIntHandler(void);
 void Timer1AIntHandler(void);
 void Timer2AIntHandler(void);
 void PWMGen2IntHandler(void);
-void PortEIntHandler(void);
+void ADCInt1Handler(void);
 
+/* Synth modules */
 Osc mainOsc1;
 Osc mainOsc2;
 Osc pitchLFO;
 Env volEnv;
 Env pitchAmpEnv;
 Knob knobs[NUM_KNOBS];
-float[5] buffer;
+float buffer[2] = {0};
+
+float SVFilter(float sample, float F,float Q){
+	//F = 2*sin(APP_PI*F/FS);
+	float LP = buffer[0] + F*buffer[1];
+	float HP = sample - LP - Q*buffer[1];
+	float BP = F*HP + buffer[1];
+	buffer[0] = LP;
+	buffer[1] = BP;
+	return LP;
+}
 
 int main(void) {
 	g_ui32SysClock = MAP_SysCtlClockFreqSet(
@@ -35,17 +61,17 @@ int main(void) {
 
 	// Initialize system hardware & peripherals
 	setupDigitalInputs();
-	setupAnalogInputs();
 	setupSSI();
 	setupTimers();
+	setupAnalogInputs();
 
 	// Setup oscillator
 	initOsc(&mainOsc1, FS);
 	// Setup LFOs
 	initOsc(&pitchLFO, MOD_FS);
-	setOscType(&pitchLFO, TRI_WV);
-	setOscGain(&pitchLFO, 0.49);
-	setOscFreq(&pitchLFO, 1);
+	setOscType(&pitchLFO, TRI_WV, LFO_OSC);
+	setOscGain(&pitchLFO, 0.5);
+	setOscNote(&pitchLFO, 48);
 	// Setup envelopes
 	initEnv(&volEnv, MOD_FS);
 	setEnvAtkTime(&volEnv,0.01);
@@ -56,21 +82,22 @@ int main(void) {
 	setEnvHold(&pitchAmpEnv,1.0);
 	setEnvRelTime(&pitchAmpEnv,1.0);
 	// Setup knob controls
-	initKnob(&knobs[0], &pitchLFO, 0, 100.0);
+	initKnob(&knobs[0], &mainOsc1, 0, 1.0);
 	(knobs + 0)->send_fn = modifyOscFreq;
-	initKnob(&knobs[1], &mainOsc1, 0, 2.0);
-	(knobs + 1)->send_fn = modifyOscFreq;
+	initKnob(&knobs[1], 0, 0, 1.0);
+	(knobs + 1)->send_fn = 0;
 
 	MAP_IntMasterEnable();
 	MAP_FPUEnable();
 
 	float nextSample;
-	uint8_t ui8PortNLEDStates = GPIO_PIN_0;
+	uint8_t ui8PortNLEDStates = (uint8_t)GPIO_PIN_0;
+	triggerGate();
 	while (1) {
 		if (system_flags.outputNextSample) {
 			system_flags.outputNextSample = 0;
-			incrOscPhase(&mainOsc1);
 			nextSample = getOscSample(&mainOsc1);
+			nextSample = SVFilter(nextSample,knobs[1].currValue/(float)1024,1.0);
 			nextSample *= 0x3FF;
 			while(SSIBusy(SSI3_BASE));
 			SSIDataPut(SSI3_BASE, ((uint32_t) nextSample) << 2);
@@ -83,6 +110,11 @@ int main(void) {
 			incrOscPhase(&pitchLFO);
 			incrEnvPhase(&volEnv);
 			incrEnvPhase(&pitchAmpEnv);
+		}
+		if (system_flags.readInputs){
+			system_flags.readInputs = 0;
+			handleDigitalInputs();
+			//handleAnalogInputs(knobs);
 			// Modify mainOsc1
 			modifyOscFreq(&mainOsc1, getOscSample(&pitchLFO), 1);
 			setOscGain(&mainOsc1, getEnvSample(&volEnv));
@@ -91,11 +123,6 @@ int main(void) {
 			// Apply mods
 			applyMods(&mainOsc1);
 			applyMods(&pitchLFO);
-		}
-		if (system_flags.readInputs){
-			system_flags.readInputs = 0;
-			handleDigitalInputs();
-			handleAnalogInputs(knobs);
 		}
 	}
 }
@@ -112,6 +139,7 @@ void setMainOscNote(uint16_t note) {
  */
 void Timer0AIntHandler(void) {
 	MAP_TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+	incrOscPhase(&mainOsc1);
 	g_sampleCount++;
 	if (g_sampleCount == 0xFFFFFFFF) {
 		g_sampleCount = 0;
@@ -137,4 +165,9 @@ void Timer1AIntHandler(void) {
 void Timer2AIntHandler(void) {
 	MAP_TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 	system_flags.readInputs = 1;
+}
+
+void ADCInt1Handler(void) {
+	ADCIntClear(ADC0_BASE, 1);
+	handleAnalogInputs(knobs);
 }

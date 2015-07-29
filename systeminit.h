@@ -7,9 +7,10 @@
 
 #ifndef SYSTEMINIT_H_
 #define SYSTEMINIT_H_
+
 #include <stdint.h>
-#include "input.h"
-#include "oscillator.h"
+#include <stdbool.h>
+
 
 extern void setupDigitalInputs(void);
 extern void setupPWM(void);
@@ -24,14 +25,8 @@ extern void setupTimers(void);
 #define INPUT_FS 6000
 #define MOD_FS 20000
 // System states
-uint32_t g_sampleCount;
-uint32_t g_ui32SysClock; // system clock speed
+extern uint32_t g_ui32SysClock; // system clock speed
 
-struct {
-	uint16_t readInputs :1;
-	uint16_t modulate :1;
-	uint16_t outputNextSample :1;
-} system_flags;
 
 #define NUM_BUTTONS 5
 #define NUM_KNOBS 2

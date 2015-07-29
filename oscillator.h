@@ -10,14 +10,17 @@
 #include <stdbool.h>
 #define NUM_OSC_MOD_PORTS 2
 typedef enum Waveforms {SAW_WV,TRI_WV} WvfmType;
+typedef enum OscTypes {SOUND_OSC,LFO_OSC} OscType;
 typedef struct Osc_st {
 	WvfmType	wvfmType;
+	uint8_t		oscType;
 	float 		output;
 	float 		freqMods[NUM_OSC_MOD_PORTS];
+	float*		freqTable;
 	float 		gainMods[NUM_OSC_MOD_PORTS];
 	float 		targetGain;
 	float		gain;
-	uint16_t 	targetFreq;
+	uint16_t 	targetNote;
 	uint32_t 	period;
 	uint32_t 	phase;
 	uint32_t 	fs;
@@ -34,7 +37,7 @@ typedef struct Env_st {
 } Env;
 void initOsc(Osc*, uint32_t);
 float getOscSample(Osc*);
-void setOscType(Osc*, WvfmType);
+void setOscType(Osc*, WvfmType, OscType);
 void setOscNote(Osc*, uint16_t);
 void setOscFreq(Osc*, uint16_t);
 void setOscGain(Osc*, float);

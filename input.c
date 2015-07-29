@@ -4,15 +4,18 @@
  *  Created on: Jul 21, 2015
  *      Author: austen
  */
+
 #include "input.h"
+
+#include <stdbool.h>
+#include <driverlib/rom_map.h>
+#include <driverlib/gpio.h>
+#include <driverlib/adc.h>
+#include <inc/hw_memmap.h>
+
 #include "oscillator.h"
 #include "systeminit.h"
 
-#include "driverlib/gpio.h"
-#include "inc/hw_memmap.h"
-#include "driverlib/adc.h"
-#include "driverlib/pwm.h"
-#include "driverlib/rom_map.h"
 extern Osc mainOsc1;
 extern Env volEnv;
 extern Env pitchAmpEnv;
@@ -38,7 +41,7 @@ void releaseGate() {
 
 uint32_t buttons[] = { E_BUTTON_1, E_BUTTON_2, E_BUTTON_3, E_BUTTON_4,
 		E_BUTTON_5 };
-uint16_t buttonNotes[] = { 12, 14, 16, 17, 24 };
+uint16_t buttonNotes[] = { 24, 27, 29, 31, 32 };
 uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;
@@ -83,10 +86,6 @@ uint32_t currADCSeq1Values[NUM_KNOBS];
 void handleAnalogInputs(Knob knobs[]) {
 	////
 	// Trigger the ADC conversion.
-	MAP_ADCProcessorTrigger(ADC0_BASE, 1);
-	while (!MAP_ADCIntStatus(ADC0_BASE, 1, false)) {
-	}
-	MAP_ADCIntClear(ADC0_BASE, 1);
 	MAP_ADCSequenceDataGet(ADC0_BASE, 1, currADCSeq1Values);
 	///
 	// Process analog samples
@@ -95,9 +94,8 @@ void handleAnalogInputs(Knob knobs[]) {
 	int32_t diff;
 	while (i--) {
 		knob = (knobs + i);
-		currADCSeq1Values[i] >>= 2;
-		diff = ((int32_t) (currADCSeq1Values[i]) - knob->lastValue) >> 4;
-		knob->currValue = knob->lastValue + diff;
+		diff = ((int32_t) currADCSeq1Values[i]) - knob->lastValue;
+		knob->currValue = knob->lastValue + diff>>2;
 		if (knob->currValue != knob->lastValue && knob->send_fn) {
 			knob->send_fn(knob->send_target,
 					((float) knob->currValue)* knob->gain / 1080.0 ,

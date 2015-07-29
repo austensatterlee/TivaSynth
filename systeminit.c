@@ -4,24 +4,19 @@
  *  Created on: Jul 14, 2015
  *      Author: austen
  */
-#include <stdint.h>
-#include <stdbool.h>
 #include "systeminit.h"
-#include "input.h"
+#include <driverlib/adc.h>
+#include <driverlib/gpio.h>
+#include <driverlib/pin_map.h>
+#include <driverlib/pwm.h>
+#include <driverlib/rom_map.h>
+#include <driverlib/ssi.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/timer.h>
+#include <driverlib/interrupt.h>
+#include <inc/hw_memmap.h>
+#include <inc/tm4c1294ncpdt.h>
 
-#include "inc/hw_types.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_gpio.h"
-#include "inc/tm4c1294ncpdt.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/gpio.h"
-#include "driverlib/timer.h"
-#include "driverlib/pwm.h"
-#include "driverlib/ssi.h"
-#include "driverlib/interrupt.h"
-#include "driverlib/adc.h"
-#include "driverlib/rom_map.h"
 
 //*****************************************************************************
 void setupPWM() {
@@ -109,16 +104,17 @@ void setupAnalogInputs() {
 	// Enable K pins for ADC
 	MAP_GPIOPinTypeADC(GPIO_PORTK_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 	//ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_SRC_PLL | ADC_CLOCK_RATE_FULL, 1);
-	MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 1);
-	MAP_ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_PROCESSOR, 0);
+	MAP_ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 0);
+	MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 8);
 	/* Sample Sequence 1 */
 	// sample from pin K0
-	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 0,
-	ADC_CTL_CH16);
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_CH16);
 	// sample from pin K1
-	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 1,
-	ADC_CTL_CH17 | ADC_CTL_IE | ADC_CTL_END);
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 1, ADC_CTL_CH17 | ADC_CTL_IE | ADC_CTL_END);
+
 	MAP_ADCSequenceEnable(ADC0_BASE, 1);
+	MAP_ADCIntEnable(ADC0_BASE, 1);
+	MAP_IntEnable(INT_ADC0SS1);
 	MAP_ADCIntClear(ADC0_BASE, 1);
 }
 
@@ -139,6 +135,7 @@ void setupTimers() {
 	MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, g_ui32SysClock / FS);
 	MAP_TimerLoadSet(TIMER1_BASE, TIMER_A, g_ui32SysClock / MOD_FS);
 	MAP_TimerLoadSet(TIMER2_BASE, TIMER_A, g_ui32SysClock / INPUT_FS);
+	MAP_TimerControlTrigger(TIMER2_BASE, TIMER_A, true);
 
 	MAP_IntEnable(INT_TIMER0A);
 	MAP_IntEnable(INT_TIMER1A);
