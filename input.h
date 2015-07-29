@@ -25,6 +25,4 @@ void initKnob(Knob*, void*, uint8_t, float);
 void handleDigitalInputs(void);
 void handleAnalogInputs(Knob[]);
 
-extern Osc mainOsc1;
-extern Osc mainOsc2;
 #endif /* INPUT_H_ */

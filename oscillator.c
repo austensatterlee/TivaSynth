@@ -26,64 +26,123 @@ const float freqNoteTable[] = { 55., 58.27046967, 61.7354126, 65.40639496,
 		1567.98168945, 1661.21875, 1760., 1864.6550293, 1975.53320312,
 		2093.00463867, 2217.4609375, 2349.31811523, 2489.01586914,
 		2637.02050781, 2793.82592773, 2959.95532227, 3135.96337891 };
-
+/*****************************************************************
+ *
+ * Oscillator methods
+ *
+ *****************************************************************/
 void initOsc(Osc* osc, uint32_t fs) {
 	osc->fs = fs;
-	osc->gain = 1.0;
+	osc->wvfmType = SAW_WV;
+	osc->targetGain = 1.0;
 	osc->phase = 0;
 	setOscNote(osc, 0);
 	uint8_t i = NUM_OSC_MOD_PORTS;
 	while (i--) {
 		osc->freqMods[i] = 0;
+		osc->gainMods[i] = 1.0;
 	}
 }
-
-float getOscSample(Osc* osc) {
-	return (int32_t) ((osc->phase << 1) - osc->period)
-			* (osc->gain / osc->period);
-}
-
-void setOscNote(Osc* osc, uint16_t noteNum) {
-	osc->targetFreq = freqNoteTable[noteNum];
-	osc->period = osc->fs / (osc->targetFreq);
-}
-
-void setOscFreq(Osc* osc, uint16_t freq) {
-	osc->targetFreq = freq;
-	osc->period = osc->fs / (osc->targetFreq);
-}
-
-void incrementOscPhase(Osc* osc) {
+void incrOscPhase(Osc* osc) {
 	osc->phase = (osc->phase + 1) % osc->period;
 }
-
+float getOscSample(Osc* osc) {
+	switch(osc->wvfmType){
+	case SAW_WV:
+		osc->output = (osc->phase * osc->gain / osc->period);
+		break;
+	case TRI_WV:
+		osc->output = (osc->phase>(osc->period>>1) ? osc->period-osc->phase : osc->phase);
+		osc->output = (osc->output * osc->gain / osc->period);
+		break;
+	default:
+		osc->output = 0.5;
+		break;
+	}
+	return osc->output;
+}
+void setOscType(Osc* osc, WvfmType type){
+	osc->wvfmType = type;
+}
+void setOscNote(Osc* osc, uint16_t noteNum) {
+	osc->targetFreq = freqNoteTable[noteNum];
+	osc->period = osc->fs / ( osc->targetFreq);
+}
+void setOscFreq(Osc* osc, uint16_t freq) {
+	osc->targetFreq = freq;
+	osc->period = osc->fs / ( osc->targetFreq);
+}
+void setOscGain(Osc* osc, float gain) {
+	osc->targetGain = gain;
+}
 void applyMods(Osc* osc) {
-	float slideAmt;
-	int16_t freqSlope;
-	uint16_t newFreq = osc->targetFreq;
+	float freqSlideAmt = 0.0;
+	float gainSlideAmt = 1.0;
 	uint8_t index = NUM_OSC_MOD_PORTS;
 	while (index--) {
-		slideAmt = osc->freqMods[index];
-		if (slideAmt > 3) {
-			freqSlope = osc->targetFreq * 8;
-			slideAmt -= 3;
-		} else if (slideAmt > 2) {
-			freqSlope = osc->targetFreq * 4;
-			slideAmt -= 2;
-		} else if (slideAmt > 1) {
-			freqSlope = osc->targetFreq * 2;
-			slideAmt -= 1;
-		} else if (slideAmt > 0) {
-			freqSlope = osc->targetFreq;
-		} else if (slideAmt < 0) {
-			freqSlope = osc->targetFreq / 2;
-		}
-		newFreq += (slideAmt) * freqSlope;
+		freqSlideAmt += osc->freqMods[index];
+		gainSlideAmt *= osc->gainMods[index];
 	}
-	osc->period = (uint32_t) osc->fs / newFreq;
+	osc->period = (uint32_t)( osc->fs /( osc->targetFreq*(1+freqSlideAmt) ));
+	osc->gain	= osc->targetGain*gainSlideAmt;
 }
-
 void modifyOscFreq(void* oscptr, float modAmount, uint8_t port) {
 	Osc* osc = (Osc*) oscptr;
 	osc->freqMods[port] = modAmount;
+}
+void modifyOscGain(void* oscptr, float modAmount, uint8_t port) {
+	Osc* osc = (Osc*) oscptr;
+	osc->gainMods[port] = modAmount;
+}
+/*****************************************************************
+ *
+ * Envelope methods
+ *
+ *****************************************************************/
+void initEnv(Env* env, uint32_t fs){
+	env->fs 		= fs;
+	env->atkstep 	= 0;
+	env->hold 		= 0;
+	env->relstep	= 0;
+	env->phase 		= 0;
+	env->sample 	= 0;
+	env->step 		= &(env->atkstep);
+	env->gate		= 0;
+}
+float getEnvSample(Env* env){
+	env->sample = env->phase*env->hold/0xFFFFFFF;
+	env->sample *= env->sample;
+	return env->sample;
+}
+void setEnvAtkTime(Env* env, float atktime){
+	env->atkstep = (0xFFFFFFF/(env->fs*atktime));
+}
+void setEnvRelTime(Env* env, float reltime){
+	env->relstep = (0xFFFFFFF/(env->fs*reltime));
+}
+void setEnvHold(Env* env, float hold){
+	env->hold = hold;
+}
+void triggerEnv(Env* env){
+	env->gate = 1.0;
+	env->step = &(env->atkstep);
+}
+void releaseEnv(Env* env){
+	env->gate = 0.0;
+	env->step = &(env->relstep);
+}
+void incrEnvPhase(Env* env){
+	if( env->gate ){
+		if (env->phase < (0xFFFFFFF-env->atkstep) ){
+			env->phase 	+= *(env->step);
+		}else{
+			env->phase = 0xFFFFFFF;
+		}
+	}else{
+		if( env->phase > env->relstep ){
+			env->phase -= *(env->step);
+		}else{
+			env->phase = 0;
+		}
+	}
 }

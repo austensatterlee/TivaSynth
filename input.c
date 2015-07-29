@@ -5,6 +5,7 @@
  *      Author: austen
  */
 #include "input.h"
+#include "oscillator.h"
 #include "systeminit.h"
 
 #include "driverlib/gpio.h"
@@ -12,15 +13,17 @@
 #include "driverlib/adc.h"
 #include "driverlib/pwm.h"
 #include "driverlib/rom_map.h"
-
-void setMainOscNote(uint16_t note) {
-	setOscNote(&mainOsc1, note);
-}
+extern Osc mainOsc1;
+extern Env volEnv;
+extern Env pitchAmpEnv;
+extern void setMainOscNote(uint16_t);
 
 void triggerGate() {
 	/*
 	 * Trigger envelopes here
 	 */
+	triggerEnv(&volEnv);
+	triggerEnv(&pitchAmpEnv);
 	return;
 }
 
@@ -28,6 +31,8 @@ void releaseGate() {
 	/*
 	 * Release envelopes here
 	 */
+	releaseEnv(&volEnv);
+	releaseEnv(&pitchAmpEnv);
 	return;
 }
 
@@ -95,7 +100,7 @@ void handleAnalogInputs(Knob knobs[]) {
 		knob->currValue = knob->lastValue + diff;
 		if (knob->currValue != knob->lastValue && knob->send_fn) {
 			knob->send_fn(knob->send_target,
-					((float) knob->currValue) / 1008.0 * knob->gain,
+					((float) knob->currValue)* knob->gain / 1080.0 ,
 					knob->out_port);
 		}
 		knob->lastValue = knob->currValue;
