@@ -41,7 +41,7 @@ void releaseGate() {
 
 uint32_t buttons[] = { E_BUTTON_1, E_BUTTON_2, E_BUTTON_3, E_BUTTON_4,
 		E_BUTTON_5 };
-uint16_t buttonNotes[] = { 24, 27, 29, 31, 32 };
+uint16_t buttonNotes[] = { 12, 15, 17, 19, 20 };
 uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;

@@ -49,6 +49,7 @@ float SVFilter(float sample, float F,float Q){
 	float LP = buffer[0] + F*buffer[1];
 	float HP = sample - LP - Q*buffer[1];
 	float BP = F*HP + buffer[1];
+	float N	 = HP+LP;
 	buffer[0] = LP;
 	buffer[1] = BP;
 	return LP;
@@ -70,19 +71,19 @@ int main(void) {
 	// Setup LFOs
 	initOsc(&pitchLFO, MOD_FS);
 	setOscType(&pitchLFO, TRI_WV, LFO_OSC);
-	setOscGain(&pitchLFO, 0.5);
-	setOscNote(&pitchLFO, 48);
+	setOscGain(&pitchLFO, 0.2);
+	setOscNote(&pitchLFO, 60);
 	// Setup envelopes
 	initEnv(&volEnv, MOD_FS);
 	setEnvAtkTime(&volEnv,0.01);
 	setEnvHold(&volEnv,1.0);
-	setEnvRelTime(&volEnv,0.5);
+	setEnvRelTime(&volEnv,0.25);
 	initEnv(&pitchAmpEnv, MOD_FS);
-	setEnvAtkTime(&pitchAmpEnv,1.0);
+	setEnvAtkTime(&pitchAmpEnv,0.85);
 	setEnvHold(&pitchAmpEnv,1.0);
 	setEnvRelTime(&pitchAmpEnv,1.0);
 	// Setup knob controls
-	initKnob(&knobs[0], &mainOsc1, 0, 1.0);
+	initKnob(&knobs[0], &mainOsc1, 0, 1.5);
 	(knobs + 0)->send_fn = modifyOscFreq;
 	initKnob(&knobs[1], 0, 0, 1.0);
 	(knobs + 1)->send_fn = 0;
@@ -97,8 +98,12 @@ int main(void) {
 		if (system_flags.outputNextSample) {
 			system_flags.outputNextSample = 0;
 			nextSample = getOscSample(&mainOsc1);
-			nextSample = SVFilter(nextSample,knobs[1].currValue/(float)1024,1.0);
-			nextSample *= 0x3FF;
+			nextSample = SVFilter(nextSample*0x3FF,knobs[1].currValue/2048.0+0.025,0.5);
+			if(nextSample>1023){
+				nextSample=1023;
+			}else if(nextSample<0){
+				nextSample=0;
+			}
 			while(SSIBusy(SSI3_BASE));
 			SSIDataPut(SSI3_BASE, ((uint32_t) nextSample) << 2);
 			ui8PortNLEDStates ^= (GPIO_PIN_0 | GPIO_PIN_1);

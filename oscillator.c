@@ -77,7 +77,7 @@ void applyMods(Osc* osc) {
 		freqSlideAmt += 12*osc->freqMods[index];
 		gainSlideAmt *= osc->gainMods[index];
 	}
-	freqSlideAmt = 1+getFreqSlideAmt(freqSlideAmt);
+	freqSlideAmt = getFreqSlideAmt(freqSlideAmt);
 	osc->period = (uint32_t)( osc->fs /( freqSlideAmt*osc->freqTable[osc->targetNote] ));
 	osc->gain	= osc->targetGain*gainSlideAmt;
 }
