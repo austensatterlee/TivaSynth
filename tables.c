@@ -110,5 +110,5 @@ const float freqStepSlopeTable[] = {
 float getFreqSlideAmt(float semitones){
 	semitones+=48; // table begins at -48 semitones
 	uint32_t intFreqSlideAmt = (uint32_t)(semitones);
-	return (semitones-intFreqSlideAmt)*(freqStepSlopeTable[intFreqSlideAmt])+freqStepTable[intFreqSlideAmt];
+	return (semitones-intFreqSlideAmt)*(freqStepSlopeTable[intFreqSlideAmt+1])+freqStepTable[intFreqSlideAmt];
 }

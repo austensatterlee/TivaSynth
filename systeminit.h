@@ -22,14 +22,14 @@ extern void setupTimers(void);
 #define SSI_BAUDRATE 1200000
 #define PWMPERIOD 500
 #define FS 150000
-#define INPUT_FS 2000
+#define INPUT_FS 60
 #define MOD_FS 20000
 // System states
 extern uint32_t g_ui32SysClock; // system clock speed
 
 
 #define NUM_BUTTONS 5
-#define NUM_KNOBS 2
+#define NUM_KNOBS 4
 #define E_BUTTON_1 GPIO_PIN_4
 #define E_BUTTON_2 GPIO_PIN_0
 #define E_BUTTON_3 GPIO_PIN_1

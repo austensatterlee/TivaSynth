@@ -102,20 +102,23 @@ void setupAnalogInputs() {
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOK);
 	////
 	// Enable K pins for ADC
-	MAP_GPIOPinTypeADC(GPIO_PORTK_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-	//ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_SRC_PLL | ADC_CLOCK_RATE_FULL, 1);
-	MAP_ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 0);
-	MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 8);
+	MAP_GPIOPinTypeADC(GPIO_PORTK_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
+	MAP_ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
+	//MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 8);
 	/* Sample Sequence 1 */
 	// sample from pin K0
-	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_CH16);
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_CH16);
 	// sample from pin K1
-	MAP_ADCSequenceStepConfigure(ADC0_BASE, 1, 1, ADC_CTL_CH17 | ADC_CTL_IE | ADC_CTL_END);
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 1, ADC_CTL_CH17);
+	// sample from pin K2
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 2, ADC_CTL_CH18);
+	// sample from pin K3
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 3, ADC_CTL_CH19 | ADC_CTL_IE | ADC_CTL_END);
 
-	MAP_ADCSequenceEnable(ADC0_BASE, 1);
-	MAP_ADCIntEnable(ADC0_BASE, 1);
-	MAP_IntEnable(INT_ADC0SS1);
-	MAP_ADCIntClear(ADC0_BASE, 1);
+	MAP_ADCSequenceEnable(ADC0_BASE, 0);
+	MAP_ADCIntEnable(ADC0_BASE, 0);
+	MAP_IntEnable(INT_ADC0SS0);
+	MAP_ADCIntClear(ADC0_BASE, 0);
 }
 
 void setupTimers() {
@@ -139,10 +142,8 @@ void setupTimers() {
 
 	MAP_IntEnable(INT_TIMER0A);
 	MAP_IntEnable(INT_TIMER1A);
-	MAP_IntEnable(INT_TIMER2A);
 	MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	MAP_TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-	MAP_TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
 	MAP_TimerEnable(TIMER0_BASE, TIMER_A);
 	MAP_TimerEnable(TIMER1_BASE, TIMER_A);

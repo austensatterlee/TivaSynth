@@ -84,9 +84,7 @@ void handleDigitalInputs() {
 
 uint32_t currADCSeq1Values[NUM_KNOBS];
 void handleAnalogInputs(Knob knobs[]) {
-	////
-	// Trigger the ADC conversion.
-	MAP_ADCSequenceDataGet(ADC0_BASE, 1, currADCSeq1Values);
+	MAP_ADCSequenceDataGet(ADC0_BASE, 0, currADCSeq1Values);
 	///
 	// Process analog samples
 	uint8_t i = NUM_KNOBS;
@@ -94,12 +92,14 @@ void handleAnalogInputs(Knob knobs[]) {
 	int32_t diff;
 	while (i--) {
 		knob = (knobs + i);
-		diff = ((int32_t) currADCSeq1Values[i]) - knob->lastValue;
-		knob->currValue = knob->lastValue + diff>>2;
-		if (knob->currValue != knob->lastValue && knob->send_fn) {
-			knob->send_fn(knob->send_target,
-					((float) knob->currValue)* knob->gain / 1080.0 ,
-					knob->out_port);
+		diff = ((int32_t) currADCSeq1Values[i]>>4) - knob->lastValue;
+		knob->currValue = knob->lastValue + diff;
+
+		if (knob->currValue != knob->lastValue) {
+			knob->output = ((float) knob->currValue)* knob->gain / 2048.0 ;
+			if(knob->send_fn){
+				knob->send_fn(knob->send_target, knob->output, knob->out_port);
+			}
 		}
 		knob->lastValue = knob->currValue;
 	}

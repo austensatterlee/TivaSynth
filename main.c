@@ -33,7 +33,7 @@ void Timer0AIntHandler(void);
 void Timer1AIntHandler(void);
 void Timer2AIntHandler(void);
 void PWMGen2IntHandler(void);
-void ADCInt1Handler(void);
+void ADCInt0Handler(void);
 
 /* Synth modules */
 Osc mainOsc1;
@@ -71,7 +71,7 @@ int main(void) {
 	// Setup LFOs
 	initOsc(&pitchLFO, MOD_FS);
 	setOscType(&pitchLFO, TRI_WV, LFO_OSC);
-	setOscGain(&pitchLFO, 0.2);
+	setOscGain(&pitchLFO, 1.0);
 	setOscNote(&pitchLFO, 60);
 	// Setup envelopes
 	initEnv(&volEnv, MOD_FS);
@@ -83,10 +83,14 @@ int main(void) {
 	setEnvHold(&pitchAmpEnv,1.0);
 	setEnvRelTime(&pitchAmpEnv,1.0);
 	// Setup knob controls
-	initKnob(&knobs[0], &mainOsc1, 0, 1.5);
+	initKnob(&knobs[0], &mainOsc1, 0, 12.0);
 	(knobs + 0)->send_fn = modifyOscFreq;
-	initKnob(&knobs[1], 0, 0, 1.0);
-	(knobs + 1)->send_fn = 0;
+	initKnob(&knobs[1], &pitchLFO, 0, 2.0);
+	(knobs + 1)->send_fn = modifyOscGain;
+	initKnob(&knobs[2], &pitchLFO, 0, 2.0);
+	(knobs + 2)->send_fn = modifyOscFreq;
+	initKnob(&knobs[3], 0, 0, 1.0);
+	(knobs + 3)->send_fn = 0;
 
 	MAP_IntMasterEnable();
 	MAP_FPUEnable();
@@ -98,16 +102,17 @@ int main(void) {
 		if (system_flags.outputNextSample) {
 			system_flags.outputNextSample = 0;
 			nextSample = getOscSample(&mainOsc1);
-			nextSample = SVFilter(nextSample*0x3FF,knobs[1].currValue/2048.0+0.025,0.5);
+			nextSample = SVFilter(nextSample*0x3FF,knobs[3].output+0.025,0.5);
 			if(nextSample>1023){
 				nextSample=1023;
 			}else if(nextSample<0){
 				nextSample=0;
 			}
-			while(SSIBusy(SSI3_BASE));
+			while(SSIBusy(SSI3_BASE)){
+				ui8PortNLEDStates ^= (GPIO_PIN_0 | GPIO_PIN_1);
+				GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0 | GPIO_PIN_1, ui8PortNLEDStates);
+			}
 			SSIDataPut(SSI3_BASE, ((uint32_t) nextSample) << 2);
-			ui8PortNLEDStates ^= (GPIO_PIN_0 | GPIO_PIN_1);
-			GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0 | GPIO_PIN_1, ui8PortNLEDStates);
 		}
 		if (system_flags.modulate){
 			system_flags.modulate = 0;
@@ -115,10 +120,6 @@ int main(void) {
 			incrOscPhase(&pitchLFO);
 			incrEnvPhase(&volEnv);
 			incrEnvPhase(&pitchAmpEnv);
-		}
-		if (system_flags.readInputs){
-			system_flags.readInputs = 0;
-			handleDigitalInputs();
 			//handleAnalogInputs(knobs);
 			// Modify mainOsc1
 			modifyOscFreq(&mainOsc1, getOscSample(&pitchLFO), 1);
@@ -128,6 +129,11 @@ int main(void) {
 			// Apply mods
 			applyMods(&mainOsc1);
 			applyMods(&pitchLFO);
+		}
+		if (system_flags.readInputs){
+			system_flags.readInputs = 0;
+			handleDigitalInputs();
+			handleAnalogInputs(knobs);
 		}
 	}
 }
@@ -167,12 +173,7 @@ void Timer1AIntHandler(void) {
  * - Read and update values from hardware input peripherals.
  *
  */
-void Timer2AIntHandler(void) {
-	MAP_TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+void ADCInt0Handler(void) {
+	ADCIntClear(ADC0_BASE, 0);
 	system_flags.readInputs = 1;
-}
-
-void ADCInt1Handler(void) {
-	ADCIntClear(ADC0_BASE, 1);
-	handleAnalogInputs(knobs);
 }

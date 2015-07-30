@@ -14,6 +14,7 @@ typedef struct {
 	void* send_target;
 	uint8_t out_port;
 	float gain;
+	float output;
 	int32_t currValue;
 	int32_t lastValue;
 } Knob;

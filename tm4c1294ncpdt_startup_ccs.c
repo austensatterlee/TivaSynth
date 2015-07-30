@@ -57,8 +57,7 @@ extern uint32_t __STACK_TOP;
 // To be added by user
 extern void Timer0AIntHandler(void);
 extern void Timer1AIntHandler(void);
-extern void Timer2AIntHandler(void);
-extern void ADCInt1Handler(void);
+extern void ADCInt0Handler(void);
 
 //*****************************************************************************
 //
@@ -101,8 +100,8 @@ void (* const g_pfnVectors[])(void) =
 		IntDefaultHandler,// PWM Generator 1
 		IntDefaultHandler,// PWM Generator 2
 		IntDefaultHandler,// Quadrature Encoder 0
-		IntDefaultHandler,// ADC Sequence 0
-		ADCInt1Handler,// ADC Sequence 1
+		ADCInt0Handler,// ADC Sequence 0
+		IntDefaultHandler,// ADC Sequence 1
 		IntDefaultHandler,// ADC Sequence 2
 		IntDefaultHandler,// ADC Sequence 3
 		IntDefaultHandler,// Watchdog timer
@@ -110,7 +109,7 @@ void (* const g_pfnVectors[])(void) =
 		IntDefaultHandler,// Timer 0 subtimer B
 		Timer1AIntHandler,// Timer 1 subtimer A
 		IntDefaultHandler,// Timer 1 subtimer B
-		Timer2AIntHandler,// Timer 2 subtimer A
+		IntDefaultHandler,// Timer 2 subtimer A
 		IntDefaultHandler,// Timer 2 subtimer B
 		IntDefaultHandler,// Analog Comparator 0
 		IntDefaultHandler,// Analog Comparator 1
