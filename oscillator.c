@@ -68,16 +68,13 @@ void setOscGain(Osc* osc, float gain) {
 }
 void applyMods(Osc* osc) {
 	float freqSlideAmt = 0.0;
-	uint32_t intFreqSlideAmt;
 	float gainSlideAmt = 1.0;
 	uint8_t index = NUM_OSC_MOD_PORTS;
 	while (index--) {
-		//intFreqSlideAmt = (uint32_t)(osc->freqMods[index]);
-		//freqSlideAmt += (osc->freqMods[index]-intFreqSlideAmt)*(freqStepSlopeTable[intFreqSlideAmt])+freqStepTable[intFreqSlideAmt];
-		freqSlideAmt += 12*osc->freqMods[index];
+		freqSlideAmt += osc->freqMods[index];
 		gainSlideAmt *= osc->gainMods[index];
 	}
-	freqSlideAmt = 1+getFreqSlideAmt(freqSlideAmt);
+	freqSlideAmt = 1+getFreqSlideAmt(12*freqSlideAmt);
 	osc->period = (uint32_t)( osc->fs /( freqSlideAmt*osc->freqTable[osc->targetNote] ));
 	osc->gain	= osc->targetGain*gainSlideAmt;
 }
@@ -101,7 +98,7 @@ void initEnv(Env* env, uint32_t fs){
 	env->relstep	= 0;
 	env->phase 		= 0;
 	env->sample 	= 0;
-	env->step 		= &(env->atkstep);
+	env->step 		= 0;
 	env->gate		= 0;
 }
 float getEnvSample(Env* env){
@@ -120,22 +117,22 @@ void setEnvHold(Env* env, float hold){
 }
 void triggerEnv(Env* env){
 	env->gate = 1.0;
-	env->step = &(env->atkstep);
+	env->step = env->atkstep;
 }
 void releaseEnv(Env* env){
 	env->gate = 0.0;
-	env->step = &(env->relstep);
+	env->step = env->relstep;
 }
 void incrEnvPhase(Env* env){
 	if( env->gate ){
 		if (env->phase < (0xFFFFFFF-env->atkstep) ){
-			env->phase 	+= *(env->step);
+			env->phase 	+= env->step;
 		}else{
 			env->phase = 0xFFFFFFF;
 		}
 	}else{
 		if( env->phase > env->relstep ){
-			env->phase -= *(env->step);
+			env->phase -= env->step;
 		}else{
 			env->phase = 0;
 		}

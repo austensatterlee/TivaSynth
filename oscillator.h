@@ -25,16 +25,6 @@ typedef struct Osc_st {
 	uint32_t 	phase;
 	uint32_t 	fs;
 } Osc;
-typedef struct Env_st {
-	float	 	sample;
-	float 	 	hold;
-	uint32_t 	atkstep;
-	uint32_t 	relstep;
-	uint32_t* 	step;
-	uint32_t 	phase;
-	uint32_t 	fs;
-	uint8_t		gate;
-} Env;
 void initOsc(Osc*, uint32_t);
 float getOscSample(Osc*);
 void setOscType(Osc*, WvfmType, OscType);
@@ -46,6 +36,16 @@ void modifyOscGain(void*, float, uint8_t);
 void applyMods(Osc*);
 void incrOscPhase(Osc* osc);
 
+typedef struct Env_st {
+	float	 	sample;
+	float 	 	hold;
+	uint32_t 	atkstep;
+	uint32_t 	relstep;
+	uint32_t 	step;
+	uint32_t 	phase;
+	uint32_t 	fs;
+	uint8_t		gate;
+} Env;
 void initEnv(Env*, uint32_t);
 float getEnvSample(Env*);
 void setEnvAtkTime(Env*, float);

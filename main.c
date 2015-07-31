@@ -20,7 +20,8 @@ extern void triggerGate();
 
 /* System variables */
 struct {
-	uint16_t readInputs :1;
+	uint16_t readAInputs :1;
+	uint16_t readDInputs :1;
 	uint16_t modulate :1;
 	uint16_t outputNextSample :1;
 } system_flags;
@@ -52,7 +53,7 @@ float SVFilter(float sample, float F,float Q){
 	float N	 = HP+LP;
 	buffer[0] = LP;
 	buffer[1] = BP;
-	return LP;
+	return 0.7*HP+0.3*LP;
 }
 
 int main(void) {
@@ -66,30 +67,44 @@ int main(void) {
 	setupTimers();
 	setupAnalogInputs();
 
-	// Setup oscillator
+	/*
+	 *  Set sound oscillators
+	 *
+	 */
 	initOsc(&mainOsc1, FS);
-	// Setup LFOs
+	setOscType(&mainOsc1, SAW_WV, SOUND_OSC);
+	/*
+	 *  Set up LFOs
+	 *
+	 */
 	initOsc(&pitchLFO, MOD_FS);
 	setOscType(&pitchLFO, TRI_WV, LFO_OSC);
-	setOscGain(&pitchLFO, 1.0);
-	setOscNote(&pitchLFO, 60);
-	// Setup envelopes
+	setOscGain(&pitchLFO, 6.0);
+	setOscNote(&pitchLFO, 50);
+	/*
+	 *  Set up envelopes
+	 *
+	 */
 	initEnv(&volEnv, MOD_FS);
 	setEnvAtkTime(&volEnv,0.01);
 	setEnvHold(&volEnv,1.0);
-	setEnvRelTime(&volEnv,0.25);
+	setEnvRelTime(&volEnv,0.0125);
+
 	initEnv(&pitchAmpEnv, MOD_FS);
 	setEnvAtkTime(&pitchAmpEnv,0.85);
 	setEnvHold(&pitchAmpEnv,1.0);
 	setEnvRelTime(&pitchAmpEnv,1.0);
-	// Setup knob controls
-	initKnob(&knobs[0], &mainOsc1, 0, 12.0);
+	/*
+	 *  Set up and route analog controllers
+	 *
+	 */
+	initKnob(&knobs[0], &mainOsc1, 0, 1.0);
 	(knobs + 0)->send_fn = modifyOscFreq;
-	initKnob(&knobs[1], &pitchLFO, 0, 2.0);
+	initKnob(&knobs[1], &pitchLFO, 0, 1.0);
 	(knobs + 1)->send_fn = modifyOscGain;
 	initKnob(&knobs[2], &pitchLFO, 0, 2.0);
 	(knobs + 2)->send_fn = modifyOscFreq;
-	initKnob(&knobs[3], 0, 0, 1.0);
+	initKnob(&knobs[3], 0, 0, 0.125);
 	(knobs + 3)->send_fn = 0;
 
 	MAP_IntMasterEnable();
@@ -99,20 +114,23 @@ int main(void) {
 	uint8_t ui8PortNLEDStates = (uint8_t)GPIO_PIN_0;
 	triggerGate();
 	while (1) {
-		if (system_flags.outputNextSample) {
+		if (system_flags.outputNextSample){
 			system_flags.outputNextSample = 0;
-			nextSample = getOscSample(&mainOsc1);
-			nextSample = SVFilter(nextSample*0x3FF,knobs[3].output+0.025,0.5);
+
+			nextSample = getOscSample(&mainOsc1)*0x3FF;
+			nextSample = SVFilter(nextSample,knobs[3].output,0.25);
 			if(nextSample>1023){
 				nextSample=1023;
+				GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 1);
 			}else if(nextSample<0){
 				nextSample=0;
+				GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 1);
 			}
-			while(SSIBusy(SSI3_BASE)){
-				ui8PortNLEDStates ^= (GPIO_PIN_0 | GPIO_PIN_1);
-				GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0 | GPIO_PIN_1, ui8PortNLEDStates);
-			}
-			SSIDataPut(SSI3_BASE, ((uint32_t) nextSample) << 2);
+			ui8PortNLEDStates ^= (GPIO_PIN_0);
+			GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, ui8PortNLEDStates);
+			while(SSIBusy(SSI3_BASE));
+			SSIDataPut(SSI3_BASE, ((uint32_t) (nextSample) << 2));
+			GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0 | GPIO_PIN_1, 0);
 		}
 		if (system_flags.modulate){
 			system_flags.modulate = 0;
@@ -125,14 +143,17 @@ int main(void) {
 			modifyOscFreq(&mainOsc1, getOscSample(&pitchLFO), 1);
 			setOscGain(&mainOsc1, getEnvSample(&volEnv));
 			// Modify pitchLFO
-			modifyOscGain(&pitchLFO, getEnvSample(&pitchAmpEnv), 1);
+			setOscGain(&pitchLFO, getEnvSample(&pitchAmpEnv));
 			// Apply mods
 			applyMods(&mainOsc1);
 			applyMods(&pitchLFO);
 		}
-		if (system_flags.readInputs){
-			system_flags.readInputs = 0;
+		if (system_flags.readDInputs){
+			system_flags.readDInputs = 0;
 			handleDigitalInputs();
+		}
+		if (system_flags.readAInputs){
+			system_flags.readAInputs = 0;
 			handleAnalogInputs(knobs);
 		}
 	}
@@ -151,10 +172,6 @@ void setMainOscNote(uint16_t note) {
 void Timer0AIntHandler(void) {
 	MAP_TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	incrOscPhase(&mainOsc1);
-	g_sampleCount++;
-	if (g_sampleCount == 0xFFFFFFFF) {
-		g_sampleCount = 0;
-	}
 	system_flags.outputNextSample = 1;
 }
 
@@ -173,7 +190,11 @@ void Timer1AIntHandler(void) {
  * - Read and update values from hardware input peripherals.
  *
  */
+void Timer2AIntHandler(void) {
+	MAP_TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+	system_flags.readDInputs = 1;
+}
 void ADCInt0Handler(void) {
 	ADCIntClear(ADC0_BASE, 0);
-	system_flags.readInputs = 1;
+	system_flags.readAInputs = 1;
 }

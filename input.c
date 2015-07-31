@@ -92,11 +92,11 @@ void handleAnalogInputs(Knob knobs[]) {
 	int32_t diff;
 	while (i--) {
 		knob = (knobs + i);
-		diff = ((int32_t) currADCSeq1Values[i]>>4) - knob->lastValue;
-		knob->currValue = knob->lastValue + diff;
+		diff = ((int32_t) currADCSeq1Values[i]) - knob->lastValue;
+		knob->currValue = knob->lastValue + diff>>2;
 
 		if (knob->currValue != knob->lastValue) {
-			knob->output = ((float) knob->currValue)* knob->gain / 2048.0 ;
+			knob->output = ((float) knob->currValue)*( knob->gain / 1024.0 );
 			if(knob->send_fn){
 				knob->send_fn(knob->send_target, knob->output, knob->out_port);
 			}

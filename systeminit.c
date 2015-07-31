@@ -104,7 +104,7 @@ void setupAnalogInputs() {
 	// Enable K pins for ADC
 	MAP_GPIOPinTypeADC(GPIO_PORTK_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
 	MAP_ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
-	//MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 8);
+	MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 2);
 	/* Sample Sequence 1 */
 	// sample from pin K0
 	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_CH16);
@@ -142,8 +142,10 @@ void setupTimers() {
 
 	MAP_IntEnable(INT_TIMER0A);
 	MAP_IntEnable(INT_TIMER1A);
+	MAP_IntEnable(INT_TIMER2A);
 	MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	MAP_TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+	MAP_TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
 	MAP_TimerEnable(TIMER0_BASE, TIMER_A);
 	MAP_TimerEnable(TIMER1_BASE, TIMER_A);
