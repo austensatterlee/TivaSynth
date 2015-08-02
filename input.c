@@ -8,6 +8,7 @@
 #include "input.h"
 
 #include <stdbool.h>
+#include "arm_math.h"
 #include <driverlib/rom_map.h>
 #include <driverlib/gpio.h>
 #include <driverlib/adc.h>
@@ -46,9 +47,7 @@ uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;
 
-void initKnob(Knob* knob, void* target, uint8_t port, float gain) {
-	knob->out_port = port;
-	knob->send_target = target;
+void initKnob(Knob* knob, float gain) {
 	knob->gain = gain;
 	knob->lastValue = 0;
 	knob->currValue = 0;
@@ -82,9 +81,9 @@ void handleDigitalInputs() {
 	return;
 }
 
-uint32_t currADCSeq1Values[NUM_KNOBS];
+uint32_t currADCSeq0Values[NUM_KNOBS];
 void handleAnalogInputs(Knob knobs[]) {
-	MAP_ADCSequenceDataGet(ADC0_BASE, 0, currADCSeq1Values);
+	MAP_ADCSequenceDataGet(ADC0_BASE, 0, currADCSeq0Values);
 	///
 	// Process analog samples
 	uint8_t i = NUM_KNOBS;
@@ -92,15 +91,13 @@ void handleAnalogInputs(Knob knobs[]) {
 	int32_t diff;
 	while (i--) {
 		knob = (knobs + i);
-		diff = ((int32_t) currADCSeq1Values[i]) - knob->lastValue;
-		knob->currValue = knob->lastValue + diff>>2;
+		diff = ((int32_t) (currADCSeq0Values[i])) - knob->lastValue;
+		knob->currValue = knob->lastValue + diff>>4;
 
 		if (knob->currValue != knob->lastValue) {
-			knob->output = ((float) knob->currValue)*( knob->gain / 1024.0 );
-			if(knob->send_fn){
-				knob->send_fn(knob->send_target, knob->output, knob->out_port);
-			}
+			knob->output = ((float) knob->currValue)*( knob->gain / 256.0 );
 		}
+
 		knob->lastValue = knob->currValue;
 	}
 }

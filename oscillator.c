@@ -20,17 +20,12 @@ void initOsc(Osc* osc, uint32_t fs) {
 	osc->wvfmType = SAW_WV;
 	osc->targetGain = 1.0;
 	osc->phase = 0;
+	osc->freqMod = 0;
+	osc->gainMod = 1.0;
 	setOscNote(osc, 0);
-	uint8_t i = NUM_OSC_MOD_PORTS;
-	while (i--) {
-		osc->freqMods[i] = 0;
-		osc->gainMods[i] = 1.0;
-	}
 }
 void incrOscPhase(Osc* osc) {
 	osc->phase = (osc->phase + 1) % osc->period;
-}
-float getOscSample(Osc* osc) {
 	switch(osc->wvfmType){
 	case SAW_WV:
 		osc->output = (osc->phase * osc->gain / osc->period);
@@ -39,11 +34,14 @@ float getOscSample(Osc* osc) {
 		osc->output = (osc->phase>(osc->period>>1) ? osc->period-osc->phase : osc->phase);
 		osc->output = (osc->output * osc->gain / osc->period);
 		break;
+	case SQUARE_WV:
+		osc->output = (osc->phase>(osc->period>>1) ? osc->phase : 0);
+		osc->output = (osc->output * osc->gain / osc->period);
+		break;
 	default:
 		osc->output = 0.5;
 		break;
 	}
-	return osc->output;
 }
 void setOscType(Osc* osc, WvfmType wvfmtype, OscType osctype){
 	osc->wvfmType = wvfmtype;
@@ -67,24 +65,18 @@ void setOscGain(Osc* osc, float gain) {
 	osc->targetGain = gain;
 }
 void applyMods(Osc* osc) {
-	float freqSlideAmt = 0.0;
-	float gainSlideAmt = 1.0;
-	uint8_t index = NUM_OSC_MOD_PORTS;
-	while (index--) {
-		freqSlideAmt += osc->freqMods[index];
-		gainSlideAmt *= osc->gainMods[index];
-	}
-	freqSlideAmt = 1+getFreqSlideAmt(12*freqSlideAmt);
-	osc->period = (uint32_t)( osc->fs /( freqSlideAmt*osc->freqTable[osc->targetNote] ));
-	osc->gain	= osc->targetGain*gainSlideAmt;
+	osc->period = (uint32_t)( osc->fs /( (1+(osc->freqMod))*osc->freqTable[osc->targetNote] ));
+	osc->gain	= osc->targetGain*osc->gainMod;
+	osc->freqMod = 0.0;
+	osc->gainMod = 1.0;
 }
-void modifyOscFreq(void* oscptr, float modAmount, uint8_t port) {
+void modifyOscFreq(void* oscptr, float modAmount) {
 	Osc* osc = (Osc*) oscptr;
-	osc->freqMods[port] = modAmount;
+	osc->freqMod +=getFreqSlideAmt( modAmount );
 }
-void modifyOscGain(void* oscptr, float modAmount, uint8_t port) {
+void modifyOscGain(void* oscptr, float modAmount) {
 	Osc* osc = (Osc*) oscptr;
-	osc->gainMods[port] = modAmount;
+	osc->gainMod *= modAmount;
 }
 /*****************************************************************
  *

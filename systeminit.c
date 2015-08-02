@@ -39,7 +39,7 @@ void setupPWM() {
 	MAP_PWMClockSet(PWM0_BASE, PWM_SYSCLK_DIV_1);    // 120MHz
 	MAP_PWMGenConfigure(PWM0_BASE, PWM_GEN_2,
 			PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_GEN_SYNC_LOCAL);
-	MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, PWMPERIOD);
+	MAP_PWMGenPeriodSet(PWM0_BASE, PWM_GEN_2, PWM_PERIOD);
 
 	MAP_PWMOutputState(PWM0_BASE, PWM_OUT_4_BIT, true);
 	MAP_PWMGenEnable(PWM0_BASE, PWM_GEN_2);
@@ -100,9 +100,11 @@ void setupAnalogInputs() {
 	 */
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOK);
+	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
 	////
 	// Enable K pins for ADC
 	MAP_GPIOPinTypeADC(GPIO_PORTK_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
+	MAP_GPIOPinTypeADC(GPIO_PORTD_BASE, GPIO_PIN_1);
 	MAP_ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
 	MAP_ADCHardwareOversampleConfigure(ADC0_BASE, 2);
 	/* Sample Sequence 1 */
@@ -113,7 +115,9 @@ void setupAnalogInputs() {
 	// sample from pin K2
 	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 2, ADC_CTL_CH18);
 	// sample from pin K3
-	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 3, ADC_CTL_CH19 | ADC_CTL_IE | ADC_CTL_END);
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 3, ADC_CTL_CH19);
+	// sample from pin D1
+	MAP_ADCSequenceStepConfigure(ADC0_BASE, 0, 4, ADC_CTL_CH14 | ADC_CTL_IE | ADC_CTL_END);
 
 	MAP_ADCSequenceEnable(ADC0_BASE, 0);
 	MAP_ADCIntEnable(ADC0_BASE, 0);
