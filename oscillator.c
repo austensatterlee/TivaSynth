@@ -21,6 +21,7 @@ void initOsc(Osc* osc, uint32_t fs) {
 	osc->targetGain = 1.0;
 	osc->phase = 0;
 	osc->freqMod = 0;
+	osc->noteMod = 0;
 	osc->gainMod = 1.0;
 	setOscNote(osc, 0);
 }
@@ -59,13 +60,14 @@ void setOscType(Osc* osc, WvfmType wvfmtype, OscType osctype){
 }
 void setOscNote(Osc* osc, uint16_t noteNum) {
 	osc->targetNote = noteNum;
+	osc->noteMod = 0;
 	osc->period = osc->fs / (osc->freqTable[osc->targetNote]);
 }
 void setOscGain(Osc* osc, float gain) {
 	osc->targetGain = gain;
 }
 void applyMods(Osc* osc) {
-	osc->period = (uint32_t)( osc->fs /( (1+(osc->freqMod))*osc->freqTable[osc->targetNote] ));
+	osc->period = (uint32_t)( osc->fs /( (1+(osc->freqMod))*osc->freqTable[osc->targetNote+osc->noteMod] ));
 	osc->gain	= osc->targetGain*osc->gainMod;
 	osc->freqMod = 0.0;
 	osc->gainMod = 1.0;

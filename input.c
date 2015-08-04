@@ -6,11 +6,12 @@
  */
 
 #include "input.h"
+#include "arm_math.h"
 
 #include <stdbool.h>
-#include "arm_math.h"
 #include <driverlib/rom_map.h>
 #include <driverlib/gpio.h>
+#include <driverlib/ssi.h>
 #include <driverlib/adc.h>
 #include <inc/hw_memmap.h>
 
@@ -21,28 +22,12 @@ extern Osc mainOsc1;
 extern Env volEnv;
 extern Env pitchAmpEnv;
 extern void setMainOscNote(uint16_t);
-
-void triggerGate() {
-	/*
-	 * Trigger envelopes here
-	 */
-	triggerEnv(&volEnv);
-	triggerEnv(&pitchAmpEnv);
-	return;
-}
-
-void releaseGate() {
-	/*
-	 * Release envelopes here
-	 */
-	releaseEnv(&volEnv);
-	releaseEnv(&pitchAmpEnv);
-	return;
-}
+extern void triggerGate();
+extern void releaseGate();
 
 uint32_t buttons[] = { E_BUTTON_1, E_BUTTON_2, E_BUTTON_3, E_BUTTON_4,
 		E_BUTTON_5 };
-uint16_t buttonNotes[] = { 12, 15, 17, 19, 20 };
+uint16_t buttonNotes[] = { 0, 12, 24, 36, 48 };
 uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;
@@ -79,6 +64,19 @@ void handleDigitalInputs() {
 
 	prevButtonStates = currButtonStates;
 	return;
+}
+
+uint32_t expanderData;
+void readFromExpansion(){
+	SSIDataPut(SSI3_BASE,0x41);
+	SSIDataPut(SSI3_BASE,0x09);
+	while(SSIBusy(SSI3_BASE));
+	SSIDataGet(SSI3_BASE,&expanderData);
+	if(!(expanderData&0x01)){
+		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 1);
+	}else{
+		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);
+	}
 }
 
 uint32_t currADCSeq0Values[NUM_KNOBS];

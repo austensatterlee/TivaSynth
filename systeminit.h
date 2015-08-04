@@ -14,16 +14,17 @@
 
 extern void setupDigitalInputs(void);
 extern void setupPWM(void);
-extern void setupSSI(void);
+extern void setupDAC(void);
+extern void setupIOExpander(void);
 extern void setupAnalogInputs(void);
 extern void setupTimers(void);
 
 // System parameters
-#define SSI_BAUDRATE 1200000
+#define SSI_BAUDRATE 1000000
 #define PWM_PERIOD 1200
 #define FS 120000
-#define INPUT_FS 60
-#define MOD_FS 12000
+#define INPUT_FS 600
+#define MOD_FS 120000/0xFF
 // System states
 extern uint32_t g_ui32SysClock; // system clock speed
 

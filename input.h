@@ -19,5 +19,6 @@ typedef struct {
 void initKnob(Knob*, float);
 void handleDigitalInputs(void);
 void handleAnalogInputs(Knob[]);
+void readFromExpansion(void);
 
 #endif /* INPUT_H_ */

@@ -20,6 +20,7 @@ typedef struct Osc_st {
 	float 		targetGain;
 	float		gain;
 	uint16_t 	targetNote;
+	uint16_t 	noteMod;
 	uint32_t 	period;
 	uint32_t 	phase;
 	uint32_t 	fs;
