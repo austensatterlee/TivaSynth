@@ -20,13 +20,14 @@ typedef struct Osc_st {
 	float 		targetGain;
 	float		gain;
 	uint16_t 	targetNote;
-	uint16_t 	noteMod;
+	int16_t 	noteMod;
 	uint32_t 	period;
 	uint32_t 	phase;
+	uint32_t 	step;
 	uint32_t 	fs;
+	struct Osc_st*		syncOsc;
 } Osc;
 void initOsc(Osc*, uint32_t);
-float getOscSample(Osc*);
 void setOscType(Osc*, WvfmType, OscType);
 void setOscNote(Osc*, uint16_t);
 void setOscFreq(Osc*, uint16_t);

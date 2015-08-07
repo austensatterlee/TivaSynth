@@ -20,29 +20,36 @@ void initOsc(Osc* osc, uint32_t fs) {
 	osc->wvfmType = SAW_WV;
 	osc->targetGain = 1.0;
 	osc->phase = 0;
+	osc->step  = 0;
 	osc->freqMod = 0;
 	osc->noteMod = 0;
 	osc->gainMod = 1.0;
+	osc->syncOsc = 0;
 	setOscNote(osc, 0);
+	applyMods(osc);
 }
 void incrOscPhase(Osc* osc) {
-	osc->phase = (osc->phase + 1) % osc->period;
+	osc->phase+=osc->step;//(osc->phase + 1) % osc->period;
+	if(osc->syncOsc && osc->phase < osc->step){
+		osc->syncOsc->phase = 0;
+	}
 	switch(osc->wvfmType){
 	case SAW_WV:
-		osc->output = (osc->phase * osc->gain / osc->period);
+		osc->output = (osc->phase * osc->gain / 0xFFFFFFFF);
 		break;
 	case TRI_WV:
-		osc->output = (osc->phase>(osc->period>>1) ? osc->period-osc->phase : osc->phase);
-		osc->output = (osc->output * osc->gain / osc->period);
+		osc->output = (osc->phase>(0xFFFFFFFF>>1) ? 0xFFFFFFFF-osc->phase : osc->phase);
+		osc->output = (osc->output * osc->gain / 0xFFFFFFFF);
 		break;
 	case SQUARE_WV:
-		osc->output = (osc->phase>(osc->period>>1) ? osc->phase : 0);
-		osc->output = (osc->output * osc->gain / osc->period);
+		osc->output = (osc->phase>(0xFFFFFFFF>>1) ? 0xFFFFFFFF : 0);
+		osc->output = (osc->output * osc->gain / 0xFFFFFFFF);
 		break;
 	default:
 		osc->output = 0.5;
 		break;
 	}
+	osc->output-=0.5;
 }
 void setOscType(Osc* osc, WvfmType wvfmtype, OscType osctype){
 	osc->wvfmType = wvfmtype;
@@ -61,20 +68,21 @@ void setOscType(Osc* osc, WvfmType wvfmtype, OscType osctype){
 void setOscNote(Osc* osc, uint16_t noteNum) {
 	osc->targetNote = noteNum;
 	osc->noteMod = 0;
-	osc->period = osc->fs / (osc->freqTable[osc->targetNote]);
+	//osc->period = osc->fs / (osc->freqTable[osc->targetNote]);
 }
 void setOscGain(Osc* osc, float gain) {
 	osc->targetGain = gain;
 }
 void applyMods(Osc* osc) {
-	osc->period = (uint32_t)( osc->fs /( (1+(osc->freqMod))*osc->freqTable[osc->targetNote+osc->noteMod] ));
+	float notefreq = getNoteFreq(osc->targetNote+osc->noteMod)*getFreqSlideAmt(osc->freqMod);
+	osc->step = (uint32_t)( 0xFFFFFFFF*notefreq/osc->fs );
 	osc->gain	= osc->targetGain*osc->gainMod;
 	osc->freqMod = 0.0;
 	osc->gainMod = 1.0;
 }
 void modifyOscFreq(void* oscptr, float modAmount) {
 	Osc* osc = (Osc*) oscptr;
-	osc->freqMod +=getFreqSlideAmt( modAmount );
+	osc->freqMod += (modAmount);
 }
 void modifyOscGain(void* oscptr, float modAmount) {
 	Osc* osc = (Osc*) oscptr;
@@ -97,7 +105,6 @@ void initEnv(Env* env, uint32_t fs){
 }
 float getEnvSample(Env* env){
 	env->sample = env->phase*env->hold/0xFFFFFFF;
-	env->sample *= env->sample;
 	return env->sample;
 }
 void setEnvAtkTime(Env* env, float atktime){

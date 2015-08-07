@@ -21,10 +21,10 @@ extern void setupTimers(void);
 
 // System parameters
 #define SSI_BAUDRATE 1000000
-#define PWM_PERIOD 1200
-#define FS 120000
+#define PWM_PERIOD 500
+#define FS 150000
 #define INPUT_FS 600
-#define MOD_FS 120000/0xFF
+#define MOD_FS FS/0x8
 // System states
 extern uint32_t g_ui32SysClock; // system clock speed
 

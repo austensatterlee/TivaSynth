@@ -61,9 +61,9 @@ void setupDAC(void) {
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
 
-	MAP_GPIOPinConfigure(GPIO_PQ0_SSI3CLK); // Enable pin PQ0 for SSI3 SSI3CLK
-	MAP_GPIOPinConfigure(GPIO_PQ1_SSI3FSS); // Enable pin PQ1 for SSI3 SSI3FSS
-	MAP_GPIOPinConfigure(GPIO_PQ2_SSI3XDAT0); // Enable pin PQ2 for SSI3 SSI3XDAT0 (data in)
+	MAP_GPIOPinConfigure(GPIO_PQ0_SSI3CLK);
+	MAP_GPIOPinConfigure(GPIO_PQ1_SSI3FSS);
+	MAP_GPIOPinConfigure(GPIO_PQ2_SSI3XDAT0);
 	MAP_GPIOPinTypeSSI(GPIO_PORTQ_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2);
 	/*
 	 * Configure SSI module
@@ -71,6 +71,51 @@ void setupDAC(void) {
 	MAP_SSIConfigSetExpClk(SSI3_BASE, g_ui32SysClock, SSI_FRF_MOTO_MODE_0,
 			SSI_MODE_MASTER, SSI_BAUDRATE, 8); // SPI freq = 1e6 Hz, 12 bits
 	MAP_SSIEnable(SSI3_BASE);
+}
+
+void setupIOExpander(void) {
+	/*
+	 * Configure pins for the MCP23S08 I/O expander
+	 *
+	 * Peripheral: 	SSI3
+	 * Pins: 		Pins Q0 (CLK), Q1 (GPIO [CS]), Q2 (Tx), Q3 (Rx)
+	 * Interrupts: 	N/A
+	 *
+	 */
+	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
+	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
+	SysCtlDelay(10000);
+	MAP_GPIOPinConfigure(GPIO_PQ0_SSI3CLK);
+	MAP_GPIOPinConfigure(GPIO_PQ1_SSI3FSS);
+	MAP_GPIOPinConfigure(GPIO_PQ2_SSI3XDAT0);
+	MAP_GPIOPinConfigure(GPIO_PQ3_SSI3XDAT1);
+	MAP_GPIOPinTypeSSI(GPIO_PORTQ_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
+
+	/*
+	 * Configure SSI module
+	 */
+	SSIAdvModeSet(SSI3_BASE,SSI_ADV_MODE_READ_WRITE);
+	SSIAdvFrameHoldEnable(SSI3_BASE);
+	MAP_SSIConfigSetExpClk(SSI3_BASE, g_ui32SysClock, SSI_FRF_MOTO_MODE_0,
+			SSI_MODE_MASTER, SSI_BAUDRATE, 8); // SPI freq = 1e6 Hz, 12 bits
+	MAP_SSIEnable(SSI3_BASE);
+
+	uint32_t debug_buf1 = 0;
+	uint32_t debug_buf2 = 0;
+	uint32_t count = 0;
+	//SSIDataPut(SSI3_BASE,0x40);
+	//SSIDataPut(SSI3_BASE,0x05);
+	//SSIAdvDataPutFrameEnd(SSI3_BASE,0x30);
+	//SSIDataPut(SSI3_BASE,0x40);
+	//SSIDataPut(SSI3_BASE,0x06);
+	//SSIAdvDataPutFrameEnd(SSI3_BASE,0xFF);
+	while(debug_buf2!=0x02){
+		SSIDataPut(SSI3_BASE,0x41);
+		SSIDataPut(SSI3_BASE,0x00);
+		SSIDataGet(SSI3_BASE,&debug_buf2);
+		count++;
+	}
+	SSIDataGet(SSI3_BASE,&debug_buf1);
 }
 
 void setupDigitalInputs(void) {

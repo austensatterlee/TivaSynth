@@ -12,9 +12,11 @@
 #include <math.h>
 #include <driverlib/debug.h>
 
+#include "arm_math.h"
 #include "systeminit.h"
 #include "input.h"
 #include "oscillator.h"
+#include "tables.h"
 #define APP_PI 3.141592653589793f
 
 /* System variables */
@@ -24,6 +26,16 @@ struct {
 	uint16_t modulate :1;
 	uint16_t outputNextSample :1;
 } system_flags;
+
+struct {
+	float delaybuf[3000];
+	struct {
+		float K;
+		uint32_t numDelaySamples;
+		uint32_t index;
+		uint32_t previndex;
+	} delaylines[3];
+} delay1 = {{0}};
 
 volatile uint32_t g_sampleCount;
 uint32_t g_ui32SysClock;
@@ -37,7 +49,6 @@ void ADCInt0Handler(void);
 
 /* Synth modules */
 Osc mainOsc1;
-Osc mainOsc2;
 Osc pitchLFO;
 Env volEnv;
 Env pitchAmpEnv;
@@ -45,20 +56,20 @@ Env cutoffEnv;
 Knob knobs[NUM_KNOBS];
 
 float SVFilter(float sample, float* buffer, float F, float Q){
-	//F = 2*sin(APP_PI*F/FS);
+	F = getFilterFreq(F);
 	float LP = buffer[0] + F*buffer[1];
 	float HP = sample - LP - Q*buffer[1];
 	float BP = F*HP + buffer[1];
 	float N	 = HP+LP;
 	buffer[0] = LP;
 	buffer[1] = BP;
-	return HP;
+	return LP;
 }
 void setMainOscNote(uint16_t note) {
 	setOscNote(&mainOsc1, note);
 }
 
-uint16_t seq[] = {0,2,3,7,9,10,12};
+uint16_t seq[] = {0,5,12,17};
 volatile uint16_t seqind = 0;
 volatile uint16_t seqCounter=0;
 void triggerGate() {
@@ -102,19 +113,16 @@ int main(void) {
 	 *
 	 */
 	initOsc(&mainOsc1, FS);
-	setOscType(&mainOsc1, SAW_WV, SOUND_OSC);
+	setOscType(&mainOsc1, TRI_WV, SOUND_OSC);
 	setOscNote(&mainOsc1, 0);
-	initOsc(&mainOsc2, FS);
-	setOscType(&mainOsc2, SAW_WV, SOUND_OSC);
-	setOscNote(&mainOsc2, 0);
 	/*
 	 *  Set up LFOs
 	 *
 	 */
 	initOsc(&pitchLFO, MOD_FS);
-	setOscType(&pitchLFO, TRI_WV, LFO_OSC);
+	setOscType(&pitchLFO, SAW_WV, LFO_OSC);
 	setOscGain(&pitchLFO, 2.0);
-	setOscNote(&pitchLFO, 24);
+	setOscNote(&pitchLFO, 0);
 	/*
 	 *  Set up envelopes
 	 *
@@ -137,10 +145,10 @@ int main(void) {
 	 *  Set up and route analog controllers
 	 *
 	 */
-	initKnob(&knobs[0], 24.0); // main pitch
-	initKnob(&knobs[1], 2.0); // pitch lfo gain
-	initKnob(&knobs[2], 48.0); // pitch lfo rate
-	initKnob(&knobs[3], 0.25);
+	initKnob(&knobs[0], 12.0); // main pitch
+	initKnob(&knobs[1], 2.0);
+	initKnob(&knobs[2], 12.0); // pitch lfo gain
+	initKnob(&knobs[3], 0.125);
 	initKnob(&knobs[4], 1.0);
 
 	MAP_IntMasterEnable();
@@ -149,35 +157,69 @@ int main(void) {
 	triggerGate();
 	float nextSample1;
 	float nextSample2;
-	float buffer1[2] = {0};
-	float buffer2[2] = {0};
+	float buffer1[2] = {{0}};
+	float buffer2[2] = {{0}};
+	delay1.delaylines[0].K = 0.95;
+	delay1.delaylines[0].numDelaySamples = 1483;
+	delay1.delaylines[1].K = 0.96;
+	delay1.delaylines[1].numDelaySamples = 1051;
+	delay1.delaylines[2].K = 0.97;
+	delay1.delaylines[2].numDelaySamples = 269;
+	uint8_t i;
 	while (1) {
 		if (system_flags.outputNextSample){
+			g_sampleCount++;
 			system_flags.outputNextSample = 0;
 			incrOscPhase(&mainOsc1);
-			nextSample1 = SVFilter(mainOsc1.output,buffer1,cutoffEnv.sample*knobs[3].output,knobs[4].output+0.25);
-			nextSample2 = buffer1[0];
-			if(!(g_sampleCount&0x03)){
-				PWMPulseWidthSet(PWM0_BASE,PWM_OUT_4,(uint32_t)(512*nextSample1));
-				PWMPulseWidthSet(PWM0_BASE,PWM_OUT_5,(uint32_t)(256*nextSample2));
+			nextSample1 = mainOsc1.output;
+			nextSample1 = SVFilter(nextSample1,buffer1,(cutoffEnv.sample)*(knobs[3].output),knobs[4].output+0.150);
+			if(nextSample1>1){
+				nextSample1 = 1;
+			}else if(nextSample1<-1){
+				nextSample1 = -1;
 			}
-			if (!(g_sampleCount&0xFF)){
-				mainOsc1.noteMod = seq[knobs[1].currValue*6/255];
+			if(!(g_sampleCount&0x03)){
+				PWMPulseWidthSet(PWM0_BASE,PWM_OUT_4,(uint32_t)(250*(nextSample1+0.5)));
+
+				nextSample2 = nextSample1;
+				for(i=0;i<1;i++){
+					delay1.delaylines[i].index=(delay1.delaylines[i].index+1);
+					if(delay1.delaylines[i].index>=3000){
+						delay1.delaylines[i].index=0;
+					}else if(delay1.delaylines[i].index<delay1.delaylines[i].numDelaySamples){
+						delay1.delaylines[i].previndex = 3000-delay1.delaylines[i].numDelaySamples+delay1.delaylines[i].index;
+					}else{
+						delay1.delaylines[i].previndex = delay1.delaylines[i].index-delay1.delaylines[i].numDelaySamples;
+					}
+					delay1.delaybuf[delay1.delaylines[i].index]	= nextSample1 + delay1.delaylines[i].K * delay1.delaybuf[delay1.delaylines[i].previndex];
+					nextSample2	+= -delay1.delaylines[i].K * delay1.delaybuf[delay1.delaylines[i].index] + delay1.delaybuf[delay1.delaylines[i].previndex];
+				}
+				buffer2[0]=nextSample2<buffer2[0]?nextSample2:buffer2[0];
+				buffer2[1]=nextSample2>buffer2[1]?nextSample2:buffer2[1];
+				if(nextSample2>1){
+					nextSample2 = 1;
+				}else if(nextSample2<-1){
+					nextSample2 = -1;
+				}
+				PWMPulseWidthSet(PWM0_BASE,PWM_OUT_5,(uint32_t)(100*(nextSample2+2)));
+			}
+			if (!(g_sampleCount&0x7)){
+				mainOsc1.noteMod = seq[knobs[1].currValue*3/255];
+				pitchLFO.noteMod = mainOsc1.noteMod;
 				// Tick modifiers
 				incrEnvPhase(&volEnv);
 				incrEnvPhase(&pitchAmpEnv);
 				incrEnvPhase(&cutoffEnv);
 				incrOscPhase(&pitchLFO);
 				getEnvSample(&cutoffEnv);
-				cutoffEnv.sample = 1.25-cutoffEnv.sample;
 				// Modify mainOsc1
 				modifyOscGain(&mainOsc1, getEnvSample(&volEnv));
 				modifyOscFreq(&mainOsc1, pitchLFO.output);
 				modifyOscFreq(&mainOsc1, knobs[0].output);
 				// Modify pitchLFO
 				modifyOscGain(&pitchLFO, getEnvSample(&pitchAmpEnv));
-				modifyOscGain(&pitchLFO, knobs[1].output);
-				modifyOscFreq(&pitchLFO, knobs[2].output);
+				modifyOscGain(&pitchLFO, knobs[2].output);
+				modifyOscFreq(&pitchLFO, knobs[0].output);
 				// Apply mods
 				applyMods(&mainOsc1);
 				applyMods(&pitchLFO);
@@ -201,12 +243,7 @@ int main(void) {
  */
 void Timer0AIntHandler(void) {
 	MAP_TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-//	if(system_flags.outputNextSample==1){
-//		ui8PortNLEDStates ^= (GPIO_PIN_0);
-//		GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, ui8PortNLEDStates);
-//	}
 	system_flags.outputNextSample = 1;
-	g_sampleCount++;
 }
 
 /*
