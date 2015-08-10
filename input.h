@@ -8,10 +8,11 @@
 #ifndef INPUT_H_
 #define INPUT_H_
 #include <stdint.h>
+#include "arm_math.h"
 
 typedef struct {
-	float gain;
-	float output;
+	q31_t gain;
+	q31_t output;
 	int32_t currValue;
 	int32_t lastValue;
 } Knob;

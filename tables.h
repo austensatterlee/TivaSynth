@@ -7,11 +7,12 @@
 
 #ifndef TABLES_H_
 #define TABLES_H_
-
-extern const float soundFreqTable[];
-extern const float lfoFreqTable[];
-extern const float freqStepTable[];
-float getNoteFreq(float);
-float getFreqSlideAmt(float);
-float getFilterFreq(float);
+#include <stdint.h>
+#include "arm_math.h"
+q31_t getNoteFreq(q31_t);
+q31_t getLFOFreq(q31_t);
+q31_t getFreqSlideAmt(q31_t);
+q31_t getFilterFreq(q31_t);
+extern const q15_t TriTable[];
+extern const q15_t SawTable[];
 #endif /* TABLES_H_ */

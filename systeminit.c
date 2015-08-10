@@ -13,6 +13,7 @@
 #include <driverlib/ssi.h>
 #include <driverlib/sysctl.h>
 #include <driverlib/timer.h>
+#include <driverlib/systick.h>
 #include <driverlib/interrupt.h>
 #include <inc/hw_memmap.h>
 #include <inc/tm4c1294ncpdt.h>
@@ -176,27 +177,24 @@ void setupTimers() {
 	/*
 	 * Configure Timers
 	 *
-	 * Peripheral: 	Timers 0A, 2A
+	 * Peripheral: 	Timers 2A
 	 * Pins: 		N/A
-	 * Interrupts: 	Timer0AIntHandler, Timer2AIntHandler (all TIMER_TIMA_TIMEOUT)
+	 * Interrupts: 	Timer2AIntHandler (all TIMER_TIMA_TIMEOUT)
 	 *
 	 */
-	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	MAP_SysTickPeriodSet( g_ui32SysClock / FS );
+	MAP_SysTickIntEnable();
+	MAP_SysTickEnable();
+
 	MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-	MAP_TimerClockSourceSet(TIMER0_BASE,TIMER_CLOCK_SYSTEM);
 	MAP_TimerClockSourceSet(TIMER2_BASE,TIMER_CLOCK_SYSTEM);
-	MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
 	MAP_TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-	MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, g_ui32SysClock / FS);
 	MAP_TimerLoadSet(TIMER2_BASE, TIMER_A, g_ui32SysClock / INPUT_FS);
 	MAP_TimerControlTrigger(TIMER2_BASE, TIMER_A, true);
 
-	MAP_IntEnable(INT_TIMER0A);
 	MAP_IntEnable(INT_TIMER2A);
-	MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	MAP_TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
-	MAP_TimerEnable(TIMER0_BASE, TIMER_A);
 	MAP_TimerEnable(TIMER2_BASE, TIMER_A);
 }
 

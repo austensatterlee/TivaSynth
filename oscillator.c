@@ -4,89 +4,63 @@
  *  Created on: Jul 20, 2015
  *      Author: austen
  */
-#include <math.h>
 #include <stdint.h>
 #include "oscillator.h"
 #include "tables.h"
+#include "arm_math.h"
 /*****************************************************************
  *
  * Oscillator methods
  *
  *****************************************************************/
-void initOsc(Osc* osc, uint32_t fs) {
-	osc->fs = fs;
-	osc->oscType  = SOUND_OSC;
-	osc->freqTable = soundFreqTable;
-	osc->wvfmType = SAW_WV;
-	osc->targetGain = 1.0;
+void initOsc(Osc* osc) {
+	osc->targetGain = 0x7FFFFFFF;
 	osc->phase = 0;
 	osc->step  = 0;
 	osc->freqMod = 0;
 	osc->noteMod = 0;
-	osc->gainMod = 1.0;
-	osc->syncOsc = 0;
+	osc->gainMod = 0x7FFFFFFF;
+	setOscType(osc, SOUND_OSC, TriTable);
 	setOscNote(osc, 0);
 	applyMods(osc);
 }
 void incrOscPhase(Osc* osc) {
-	osc->phase+=osc->step;//(osc->phase + 1) % osc->period;
-	if(osc->syncOsc && osc->phase < osc->step){
-		osc->syncOsc->phase = 0;
-	}
-	switch(osc->wvfmType){
-	case SAW_WV:
-		osc->output = (osc->phase * osc->gain / 0xFFFFFFFF);
-		break;
-	case TRI_WV:
-		osc->output = (osc->phase>(0xFFFFFFFF>>1) ? 0xFFFFFFFF-osc->phase : osc->phase);
-		osc->output = (osc->output * osc->gain / 0xFFFFFFFF);
-		break;
-	case SQUARE_WV:
-		osc->output = (osc->phase>(0xFFFFFFFF>>1) ? 0xFFFFFFFF : 0);
-		osc->output = (osc->output * osc->gain / 0xFFFFFFFF);
-		break;
-	default:
-		osc->output = 0.5;
-		break;
-	}
-	osc->output-=0.5;
+	osc->phase+=osc->step;
+	osc->output=osc->wavetable[(osc->phase&0x7F800000)>>23]<<16;
+	arm_mult_q31(&osc->output,&osc->gain,&osc->output,1);
 }
-void setOscType(Osc* osc, WvfmType wvfmtype, OscType osctype){
-	osc->wvfmType = wvfmtype;
-	osc->oscType = osctype;
-	switch(osc->oscType){
+void setOscType(Osc* osc, OscType osctype, const q15_t *wavetable){
+	osc->wavetable = wavetable;
+	switch(osctype){
 	case SOUND_OSC:
-		osc->freqTable = soundFreqTable;
+		osc->getFreq_fn = getNoteFreq;
 		break;
 	case LFO_OSC:
-		osc->freqTable = lfoFreqTable;
+		osc->getFreq_fn = getLFOFreq;
 		break;
 	default:
 		break;
 	}
 }
-void setOscNote(Osc* osc, uint16_t noteNum) {
-	osc->targetNote = noteNum;
+void setOscNote(Osc* osc, q31_t noteNum) {
+	osc->targetNote = noteNum<<20;
 	osc->noteMod = 0;
-	//osc->period = osc->fs / (osc->freqTable[osc->targetNote]);
 }
-void setOscGain(Osc* osc, float gain) {
+void setOscGain(Osc* osc, q31_t gain) {
 	osc->targetGain = gain;
 }
 void applyMods(Osc* osc) {
-	float notefreq = getNoteFreq(osc->targetNote+osc->noteMod)*getFreqSlideAmt(osc->freqMod);
-	osc->step = (uint32_t)( 0xFFFFFFFF*notefreq/osc->fs );
-	osc->gain	= osc->targetGain*osc->gainMod;
-	osc->freqMod = 0.0;
-	osc->gainMod = 1.0;
+	osc->step = osc->getFreq_fn(osc->targetNote+osc->noteMod+osc->freqMod);
+	arm_mult_q31(&osc->targetGain,&osc->gainMod,&osc->gain,1);
+	osc->freqMod = 0;
+	osc->gainMod = 0x7FFFFFFF;
 }
-void modifyOscFreq(void* oscptr, float modAmount) {
-	Osc* osc = (Osc*) oscptr;
-	osc->freqMod += (modAmount);
+void modifyOscFreq(Osc* osc, q31_t modAmount) {
+	modAmount<<=10;
+	arm_add_q31(&modAmount,&osc->freqMod,&osc->freqMod,1);
 }
-void modifyOscGain(void* oscptr, float modAmount) {
-	Osc* osc = (Osc*) oscptr;
-	osc->gainMod *= modAmount;
+void modifyOscGain(Osc* osc, q31_t modAmount) {
+	arm_mult_q31(&modAmount,&osc->gainMod,&osc->gainMod,1);
 }
 /*****************************************************************
  *
@@ -96,40 +70,37 @@ void modifyOscGain(void* oscptr, float modAmount) {
 void initEnv(Env* env, uint32_t fs){
 	env->fs 		= fs;
 	env->atkstep 	= 0;
-	env->hold 		= 0;
 	env->relstep	= 0;
 	env->phase 		= 0;
-	env->sample 	= 0;
+	env->output 	= 0;
 	env->step 		= 0;
 	env->gate		= 0;
+	setEnvHold(env,1.0);
 }
-float getEnvSample(Env* env){
-	env->sample = env->phase*env->hold/0xFFFFFFF;
-	return env->sample;
-}
+
 void setEnvAtkTime(Env* env, float atktime){
-	env->atkstep = (0xFFFFFFF/(env->fs*atktime));
+	env->atkstep = (0x7FFFFFFF/(env->fs*atktime));
 }
 void setEnvRelTime(Env* env, float reltime){
-	env->relstep = (0xFFFFFFF/(env->fs*reltime));
+	env->relstep = (0x7FFFFFFF/(env->fs*reltime));
 }
 void setEnvHold(Env* env, float hold){
-	env->hold = hold;
+	arm_float_to_q31(&hold,&env->hold,1);
 }
 void triggerEnv(Env* env){
-	env->gate = 1.0;
+	env->gate = 1;
 	env->step = env->atkstep;
 }
 void releaseEnv(Env* env){
-	env->gate = 0.0;
+	env->gate = 0;
 	env->step = env->relstep;
 }
 void incrEnvPhase(Env* env){
 	if( env->gate ){
-		if (env->phase < (0xFFFFFFF-env->atkstep) ){
+		if (env->phase < (0x7FFFFFFF-env->atkstep) ){
 			env->phase 	+= env->step;
 		}else{
-			env->phase = 0xFFFFFFF;
+			env->phase = 0x7FFFFFFF;
 		}
 	}else{
 		if( env->phase > env->relstep ){
@@ -138,4 +109,5 @@ void incrEnvPhase(Env* env){
 			env->phase = 0;
 		}
 	}
+	arm_mult_q31((q31_t*)&env->phase,(q31_t*)&env->hold,(q31_t*)&env->output,1);
 }

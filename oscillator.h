@@ -8,38 +8,35 @@
 #define OSCILLATOR_H_
 #include <stdint.h>
 #include <stdbool.h>
-typedef enum Waveforms {SAW_WV,TRI_WV,SQUARE_WV} WvfmType;
+#include "arm_math.h"
+
 typedef enum OscTypes {SOUND_OSC,LFO_OSC} OscType;
 typedef struct Osc_st {
-	WvfmType	wvfmType;
-	uint8_t		oscType;
-	float 		output;
-	float 		freqMod;
-	float*		freqTable;
-	float 		gainMod;
-	float 		targetGain;
-	float		gain;
-	uint16_t 	targetNote;
-	int16_t 	noteMod;
-	uint32_t 	period;
+	const q15_t	*wavetable;
+	q31_t	 	output;
+	q31_t	 	freqMod;
+	q31_t		(*getFreq_fn)(q31_t);
+	q31_t	 	gainMod;
+	q31_t	 	targetGain;
+	q31_t		gain;
+	q31_t 	targetNote;
+	q31_t 	noteMod;
 	uint32_t 	phase;
-	uint32_t 	step;
-	uint32_t 	fs;
-	struct Osc_st*		syncOsc;
+	q31_t	 	step;
 } Osc;
-void initOsc(Osc*, uint32_t);
-void setOscType(Osc*, WvfmType, OscType);
-void setOscNote(Osc*, uint16_t);
-void setOscFreq(Osc*, uint16_t);
-void setOscGain(Osc*, float);
-void modifyOscFreq(void*, float);
-void modifyOscGain(void*, float);
+void initOsc(Osc*);
+void setOscType(Osc*, OscType, const q15_t*);
+void setOscNote(Osc*, q31_t);
+void setOscFreq(Osc*, q31_t);
+void setOscGain(Osc*, q31_t);
+void modifyOscFreq(Osc*, q31_t);
+void modifyOscGain(Osc*, q31_t);
 void applyMods(Osc*);
-void incrOscPhase(Osc* osc);
+void incrOscPhase(Osc*);
 
 typedef struct Env_st {
-	float	 	sample;
-	float 	 	hold;
+	q31_t	 	output;
+	q31_t 	 	hold;
 	uint32_t 	atkstep;
 	uint32_t 	relstep;
 	uint32_t 	step;
@@ -48,7 +45,6 @@ typedef struct Env_st {
 	uint8_t		gate;
 } Env;
 void initEnv(Env*, uint32_t);
-float getEnvSample(Env*);
 void setEnvAtkTime(Env*, float);
 void setEnvHold(Env*, float);
 void setEnvRelTime(Env*, float);

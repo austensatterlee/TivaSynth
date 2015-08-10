@@ -6,7 +6,6 @@
  */
 
 #include "input.h"
-#include "arm_math.h"
 
 #include <stdbool.h>
 #include <driverlib/rom_map.h>
@@ -27,13 +26,13 @@ extern void releaseGate();
 
 uint32_t buttons[] = { E_BUTTON_1, E_BUTTON_2, E_BUTTON_3, E_BUTTON_4,
 		E_BUTTON_5 };
-uint16_t buttonNotes[] = { 0, 12, 24, 36, 48 };
+uint16_t buttonNotes[] = { 0, 3, 5, 7, 9 };
 uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;
 
 void initKnob(Knob* knob, float gain) {
-	knob->gain = gain;
+	arm_float_to_q31(&gain,&knob->gain,1);
 	knob->lastValue = 0;
 	knob->currValue = 0;
 }
@@ -90,10 +89,11 @@ void handleAnalogInputs(Knob knobs[]) {
 	while (i--) {
 		knob = (knobs + i);
 		diff = ((int32_t) (currADCSeq0Values[i])) - knob->lastValue;
-		knob->currValue = knob->lastValue + diff>>4;
+		knob->currValue = knob->lastValue + diff>>2;
 
 		if (knob->currValue != knob->lastValue) {
-			knob->output = ((float) knob->currValue)*( knob->gain / 256.0 );
+			knob->output = knob->currValue<<21;
+			arm_mult_q31(&knob->output,&knob->gain,&knob->output,1);
 		}
 
 		knob->lastValue = knob->currValue;
