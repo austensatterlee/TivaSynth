@@ -48,14 +48,13 @@ q31_t SVFilter(q31_t sample, q31_t* buffer, q31_t F, q31_t Q){
 	q31_t BP=0;
 	F = getFilterFreq(F);
 	arm_mult_q31(&F,&buffer[1],&LP,1);
-	arm_add_q31(&LP,&buffer[0],&LP,1);
+	LP = __SSAT(buffer[0] + LP,31);
 	arm_mult_q31(&buffer[1],&Q,&HP,1);
-	arm_add_q31(&LP,&HP,&HP,1);
-	arm_sub_q31(&sample,&HP,&HP,1);
+	HP=__SSAT(sample-HP-LP,31);
 	arm_mult_q31(&F,&HP,&BP,1);
-	arm_add_q31(&BP,&buffer[1],&BP,1);
-	buffer[0] = LP;
+	BP = __SSAT(BP + buffer[1],31);
 	buffer[1] = BP;
+	buffer[0] = LP;
 	return LP;
 }
 void setMainOscNote(uint16_t note) {
@@ -87,8 +86,8 @@ void releaseGate() {
 	return;
 }
 
-q31_t nextSample1;
-q31_t buffer1[2] = {{0}};
+volatile q31_t nextSample1;
+volatile q31_t buffer1[2] = {{0}};
 int main(void) {
 	g_ui32SysClock = MAP_SysCtlClockFreqSet(
 			(SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL
@@ -107,35 +106,35 @@ int main(void) {
 	 */
 	initOsc(&pitchLFO);
 	setOscType(&pitchLFO, LFO_OSC, TriTable);
-	setOscGain(&pitchLFO, 1024);
-	setOscNote(&pitchLFO, 32);
+	setOscGain(&pitchLFO, 0xFFFF);
+	setOscNote(&pitchLFO, 92);
 	/*
 	 *  Set up envelopes
 	 *
 	 */
 	initEnv(&volEnv,MOD_FS);
-	setEnvAtkTime(&volEnv,0.5);
+	setEnvAtkTime(&volEnv,0.1);
 	setEnvHold(&volEnv,1.0);
-	setEnvRelTime(&volEnv,0.25);
+	setEnvRelTime(&volEnv,1.0);
 
 	initEnv(&pitchAmpEnv,MOD_FS);
-	setEnvAtkTime(&pitchAmpEnv,0.85);
+	setEnvAtkTime(&pitchAmpEnv,3.5);
 	setEnvHold(&pitchAmpEnv,1.0);
-	setEnvRelTime(&pitchAmpEnv,0.35);
+	setEnvRelTime(&pitchAmpEnv,1.5);
 
 	initEnv(&cutoffEnv,MOD_FS);
 	setEnvAtkTime(&cutoffEnv,1.15);
 	setEnvHold(&cutoffEnv,1.0);
 	setEnvRelTime(&cutoffEnv,1.25);
 	/*
-	 *  Set up and route analog controllers
+	 *  Set up analog controllers
 	 *
 	 */
 	initKnob(&knobs[0], 1.0); // main pitch
 	initKnob(&knobs[1], 1.0);
 	initKnob(&knobs[2], 1.0); // pitch lfo gain
 	initKnob(&knobs[3], 1.0); // cutoff freq.
-	initKnob(&knobs[4], 0.5); // resonance
+	initKnob(&knobs[4], 0.707); // resonance
 
 
 	/* Initialize system hardware & peripherals */
@@ -157,10 +156,10 @@ int main(void) {
 			system_flags.outputNextSample = 0;
 			incrOscPhase(&mainOsc1);
 			incrOscPhase(&pitchLFO);
-			nextSample1=mainOsc1.output>>1;
-			nextSample1 = SVFilter(nextSample1,buffer1,knobs[3].output,knobs[4].output);
+			nextSample1=mainOsc1.output;
+			nextSample1 = SVFilter(nextSample1,&buffer1[0],knobs[3].output,knobs[4].output);
 			arm_mult_q31(&nextSample1,&OUTPUT_SCALE,&nextSample1,1);
-			nextSample1+=OUTPUT_SCALE>>1;
+			nextSample1+=OUTPUT_SCALE;
 			PWMPulseWidthSet(PWM0_BASE,PWM_OUT_4,nextSample1);
 			if (!(g_sampleCount&0xFF)){
 				mainOsc1.noteMod = seq[(knobs[1].currValue*seqLength)>>10]<<20;
@@ -170,8 +169,8 @@ int main(void) {
 				incrEnvPhase(&cutoffEnv);
 				// Modify mainOsc1
 				modifyOscGain(&mainOsc1, volEnv.output);
-				modifyOscFreq(&mainOsc1, pitchLFO.output);
-				modifyOscFreq(&mainOsc1, knobs[0].output>>18);
+				modifyOscFreq(&mainOsc1, pitchLFO.output>>9);
+				modifyOscFreq(&mainOsc1, knobs[0].output>>17);
 				// Modify pitchLFO
 				modifyOscGain(&pitchLFO, pitchAmpEnv.output);
 				modifyOscGain(&pitchLFO, knobs[2].output);

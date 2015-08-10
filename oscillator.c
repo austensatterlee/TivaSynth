@@ -26,10 +26,10 @@ void initOsc(Osc* osc) {
 }
 void incrOscPhase(Osc* osc) {
 	osc->phase+=osc->step;
-	osc->output=osc->wavetable[(osc->phase&0x7F800000)>>23]<<16;
+	osc->output=arm_linear_interp_q31(osc->wavetable,osc->phase>>4,256);
 	arm_mult_q31(&osc->output,&osc->gain,&osc->output,1);
 }
-void setOscType(Osc* osc, OscType osctype, const q15_t *wavetable){
+void setOscType(Osc* osc, OscType osctype, const q31_t *wavetable){
 	osc->wavetable = wavetable;
 	switch(osctype){
 	case SOUND_OSC:
@@ -68,46 +68,39 @@ void modifyOscGain(Osc* osc, q31_t modAmount) {
  *
  *****************************************************************/
 void initEnv(Env* env, uint32_t fs){
-	env->fs 		= fs;
-	env->atkstep 	= 0;
-	env->relstep	= 0;
-	env->phase 		= 0;
+	env->atkrate 	= 0;
+	env->relrate	= 0;
+	env->phase 		= 0x7FFFFFFF;
 	env->output 	= 0;
-	env->step 		= 0;
+	env->rate 		= 0;
 	env->gate		= 0;
 	setEnvHold(env,1.0);
 }
 
 void setEnvAtkTime(Env* env, float atktime){
-	env->atkstep = (0x7FFFFFFF/(env->fs*atktime));
+	env->atkrate = envDecayTable[(uint16_t)(atktime/0.020)];
 }
 void setEnvRelTime(Env* env, float reltime){
-	env->relstep = (0x7FFFFFFF/(env->fs*reltime));
+	env->relrate = envDecayTable[(uint16_t)(reltime/0.020)];
 }
 void setEnvHold(Env* env, float hold){
 	arm_float_to_q31(&hold,&env->hold,1);
 }
 void triggerEnv(Env* env){
 	env->gate = 1;
-	env->step = env->atkstep;
+	env->rate = env->atkrate;
 }
 void releaseEnv(Env* env){
 	env->gate = 0;
-	env->step = env->relstep;
+	env->rate = env->relrate;
+	env->phase = 0x7FFFFFFF - env->phase;
 }
 void incrEnvPhase(Env* env){
+	arm_mult_q31(&env->phase,&env->rate,&env->phase,1);
 	if( env->gate ){
-		if (env->phase < (0x7FFFFFFF-env->atkstep) ){
-			env->phase 	+= env->step;
-		}else{
-			env->phase = 0x7FFFFFFF;
-		}
+		env->output = 0x7FFFFFFF - env->phase;
 	}else{
-		if( env->phase > env->relstep ){
-			env->phase -= env->step;
-		}else{
-			env->phase = 0;
-		}
+		env->output = env->phase;
 	}
-	arm_mult_q31((q31_t*)&env->phase,(q31_t*)&env->hold,(q31_t*)&env->output,1);
+	arm_mult_q31(&env->output,&env->hold,&env->output,1);
 }

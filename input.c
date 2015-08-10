@@ -45,9 +45,7 @@ void handleDigitalInputs() {
 		if ((buttonChanges & buttons[i]) && (currButtonStates & buttons[i])) {
 			// if button was just pressed
 			if (activeButton != (i + 1)) {
-				if (!activeButton) {
-					triggerGate();
-				}
+				triggerGate();
 				setMainOscNote(buttonNotes[i]);
 				activeButton = (i + 1);
 			}
