@@ -15,6 +15,7 @@ typedef struct {
 	q31_t output;
 	int32_t currValue;
 	int32_t lastValue;
+	uint8_t shift;
 } Knob;
 
 void initKnob(Knob*, float);

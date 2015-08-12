@@ -54,16 +54,14 @@ const q31_t SawTable[256] = {
 };
 
 q31_t getNoteFreq(q31_t semitones){
-	semitones = __SSAT(semitones+0x08000000,31);
-	return arm_linear_interp_q31(&noteTable[0],semitones,256);
+	return arm_linear_interp_q31(&noteTable[63],semitones,64);
 }
 q31_t getFreqSlideAmt(q31_t semitones){
-	semitones = __SSAT(semitones+0x08000000,31);
-	return arm_linear_interp_q31(&semitoneTable[0],semitones,256);
+	return arm_linear_interp_q31(&semitoneTable[0],semitones,128);
 }
 q31_t getLFOFreq(q31_t semitones){
-	return arm_linear_interp_q31(&noteTable[0],semitones,256);
+	return arm_linear_interp_q31(&noteTable[0],semitones,64);
 }
 q31_t getFilterFreq(q31_t cutoff_freq){
-	return arm_linear_interp_q31(&fcTable[0],cutoff_freq>>4,256);
+	return arm_linear_interp_q31(&fcTable[0],cutoff_freq>>3,256);
 }

@@ -26,7 +26,7 @@ extern void releaseGate();
 
 uint32_t buttons[] = { E_BUTTON_1, E_BUTTON_2, E_BUTTON_3, E_BUTTON_4,
 		E_BUTTON_5 };
-uint16_t buttonNotes[] = { 0, 3, 5, 7, 9 };
+uint16_t buttonNotes[] = { 0, 2, 3, 7, 8 };
 uint8_t currButtonStates;
 uint8_t prevButtonStates = 0;
 uint8_t activeButton = 0;
@@ -35,6 +35,7 @@ void initKnob(Knob* knob, float gain) {
 	arm_float_to_q31(&gain,&knob->gain,1);
 	knob->lastValue = 0;
 	knob->currValue = 0;
+	knob->shift		= 4;
 }
 
 void handleDigitalInputs() {
@@ -49,14 +50,12 @@ void handleDigitalInputs() {
 				setMainOscNote(buttonNotes[i]);
 				activeButton = (i + 1);
 			}
-		} else if ((buttonChanges & buttons[i])
-				&& !(currButtonStates & buttons[i])) {
-			// if button was just released
-			if (activeButton == (i + 1)) {
-				releaseGate();
-				activeButton = 0;
-			}
 		}
+	}
+	/* If all buttons have been released, release envelopes */
+	if (!(currButtonStates&ALL_E_BUTTONS)&(buttonChanges&ALL_E_BUTTONS)){
+		releaseGate();
+		activeButton = 0;
 	}
 
 	prevButtonStates = currButtonStates;
@@ -87,10 +86,10 @@ void handleAnalogInputs(Knob knobs[]) {
 	while (i--) {
 		knob = (knobs + i);
 		diff = ((int32_t) (currADCSeq0Values[i])) - knob->lastValue;
-		knob->currValue = knob->lastValue + diff>>2;
+		knob->currValue = knob->lastValue + diff>>knob->shift;
 
 		if (knob->currValue != knob->lastValue) {
-			knob->output = knob->currValue<<21;
+			knob->output = knob->currValue<<(31-12+knob->shift);
 			arm_mult_q31(&knob->output,&knob->gain,&knob->output,1);
 		}
 

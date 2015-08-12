@@ -15,6 +15,8 @@ q31_t getFreqSlideAmt(q31_t);
 q31_t getFilterFreq(q31_t);
 extern const q31_t TriTable[];
 extern const q31_t SawTable[];
+extern const q31_t SoftTable[];
+
 extern const q31_t noteTable[];
 extern const q31_t semitoneTable[];
 extern const q31_t fcTable[];
